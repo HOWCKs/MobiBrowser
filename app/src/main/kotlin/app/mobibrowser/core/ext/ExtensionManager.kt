@@ -37,10 +37,12 @@ import org.mozilla.geckoview.WebExtensionController
  * 1. [ExtensionRegistry.Mode.NATIVE] — o pacote vira uma WebExtension instalada no
  *    GeckoView (`WebExtensionController.install`). Tem runtime completo: service
  *    worker/event page, storage, declarativeNetRequest, popups, badges.
- *    Limitação real: o motor só instala pacote **assinado pela Mozilla**. Como a
- *    Chrome Web Store distribui CRX assinado pelo Google, o install nativo de um item
- *    da loja falha com `ERROR_SIGNEDSTATE_REQUIRED` (exceto extensões que também
- *    existem assinadas na AMO, que instalamos direto por `.xpi`).
+ *    Assinatura: o motor, no canal de release, só instala pacote assinado pela Mozilla —
+ *    o install nativo de um item da loja falharia com `ERROR_SIGNEDSTATE_REQUIRED`. Por
+ *    isso o app roda sobre o **GeckoView nightly**, em que `xpinstall.signatures.required`
+ *    pode ser desligado (GeckoEngine escreve o YAML de config do motor). Aí o pacote
+ *    convertido instala nativamente. Se alguém voltar o canal para `release`
+ *    (gradle/libs.versions.toml) ou o motor recusar por outro motivo, caímos no modo 2.
  *
  * 2. [ExtensionRegistry.Mode.BRIDGE] — caminho de compatibilidade: extraímos os
  *    content scripts/estilos e as regras dNR do pacote convertido e os servimos pela

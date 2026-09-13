@@ -354,6 +354,16 @@ class MobiViewModel(application: Application) : AndroidViewModel(application) {
 
     fun setBridgeEnabled(enabled: Boolean) = viewModelScope.launch { app.prefs.setBridgeEnabled(enabled) }
 
+    /**
+     * GPC (sucessor do DNT): não há API por sessão no GeckoView, é preferência do motor lida
+     * na criação do runtime. Reescrevemos o arquivo na hora e dizemos que vale do próximo início.
+     */
+    fun setGlobalPrivacyControl(enabled: Boolean) = viewModelScope.launch {
+        app.prefs.setGlobalPrivacyControl(enabled)
+        app.engine.globalPrivacyControl = enabled
+        _snack.emit(SnackbarMessage("Sinal de privacidade atualizado — vale a partir do próximo início do motor"))
+    }
+
     /** Padrão de ETP para abas novas (o por-aba fica no menu da página). */
     fun setTrackingProtectionDefault(enabled: Boolean) = viewModelScope.launch {
         app.prefs.setTrackingProtectionDefault(enabled)
@@ -425,6 +435,22 @@ class MobiViewModel(application: Application) : AndroidViewModel(application) {
     /** Link entregue pelo Activity (navegador padrão) — consome o pending do Application. */
     fun onResumed() {
         app.consumePendingUrl()?.let { url -> onNewIntentData(url) }
+    }
+
+    /**
+     * `ACTION_VIEW`/`WEB_SEARCH`/`SEND` chegam pelo Activity (o app é o navegador padrão,
+     * então isso é o caminho mais usado dele). Um `content://` que pareça pacote de extensão
+     * vai direto para o instalador — "recebi um .crx por chat e quero testar" é real.
+     */
+    fun onNewIntent(intent: Intent) {
+        val uri = intent.data ?: intent.clipData?.getItemAt(0)?.uri
+        val raw = uri?.toString().orEmpty()
+        val parecePacote = listOf(".crx", ".xpi", ".zip").any { raw.endsWith(it, ignoreCase = true) }
+        if (parecePacote && uri != null) {
+            viewModelScope.launch { extensions.installFromFile(uri) }
+            return
+        }
+        onNewIntentData(intent.dataString ?: intent.getStringExtra(Intent.EXTRA_TEXT))
     }
 
     fun onNewIntentData(url: String?) {

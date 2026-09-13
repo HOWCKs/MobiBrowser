@@ -121,9 +121,15 @@ fun SettingsScreen(vm: MobiViewModel, onDismiss: () -> Unit) {
             SwitchRow(
                 title = stringResource(R.string.settings_tracking_protection),
                 subtitle = "Bloqueio de rastreadores por aba (ETP do motor)",
-                checked = true,
+                checked = settings.trackingProtectionDefault,
                 onCheckedChange = { vm.setTrackingProtectionDefault(it) },
                 leadingIcon = Icons.Default.Shield,
+            )
+            SwitchRow(
+                title = "Enviar sinal de privacidade (GPC)",
+                subtitle = "Sucessor do \"Do Not Track\"; aplicado pelo motor no próximo início",
+                checked = settings.globalPrivacyControl,
+                onCheckedChange = vm::setGlobalPrivacyControl,
             )
             SwitchRow(
                 title = "MobiBridge (ponte de extensões)",
@@ -195,6 +201,14 @@ fun SettingsScreen(vm: MobiViewModel, onDismiss: () -> Unit) {
                 Column(Modifier.padding(vertical = 10.dp)) {
                     InfoRow("Histórico", "${vm.historyCount()} itens")
                     InfoRow("Motor", "GeckoView ${BuildConfig.GECKOVIEW_VERSION}")
+                    InfoRow(
+                        "Canal",
+                        if (BuildConfig.MOBI_ALLOW_UNSIGNED_ADDONS) {
+                            "${BuildConfig.GECKOVIEW_CHANNEL} · aceita pacote sem assinatura"
+                        } else {
+                            "${BuildConfig.GECKOVIEW_CHANNEL} · só pacote assinado"
+                        },
+                    )
                     InfoRow("Compilação", "${BuildConfig.VERSION_NAME} (${BuildConfig.GIT_SHA})")
                     Spacer(Modifier.height(6.dp))
                     Button(

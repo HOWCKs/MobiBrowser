@@ -8,6 +8,7 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -23,6 +24,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
@@ -32,6 +34,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Forward
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -71,6 +75,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -124,6 +129,10 @@ fun BrowserScreen(
     var editing by remember { mutableStateOf(false) }
     var query by remember { mutableStateOf("") }
     var toolbarHeight by remember { mutableStateOf(0) }
+    // Barras alternáveis por toque: o GeckoView do canal de release não expõe listener de
+    // rolagem (sem setEventListener/GeckoViewEventListener), então scroll-to-hide não existe
+    // — em vez de fingir que existe, a troca é explícita e previsível.
+    var barsVisible by rememberSaveable { mutableStateOf(true) }
 
     LaunchedEffect(state?.url) { editing = false }
     LaunchedEffect(tab) { query = state?.url.orEmpty() }
@@ -134,6 +143,11 @@ fun BrowserScreen(
 
     Column(modifier = modifier.fillMaxSize()) {
         // ----------------------------------------------------------- topo
+        AnimatedVisibility(
+            visible = barsVisible || editing,
+            enter = slideInVertically { shift -> -shift },
+            exit = slideOutVertically { shift -> -shift },
+        ) {
         Surface(
             tonalElevation = if (editing) 3.dp else 0.dp,
             color = if (editing) MaterialTheme.colorScheme.surfaceContainerHigh else MaterialTheme.colorScheme.surface,
@@ -176,8 +190,22 @@ fun BrowserScreen(
             }
         }
 
+        }
+
         // -------------------------------------------------------- conteúdo
         Box(Modifier.weight(1f)) {
+            if (!barsVisible) {
+                // A única forma de trazer as barras de volta tem que estar no caminho do
+                // polegar e não pode cobrir conteúdo: pílula colada no topo, discreta.
+                BarsHandle(
+                    onClick = { barsVisible = true },
+                    show = true,
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .windowInsetsPadding(WindowInsets.statusBars)
+                        .padding(top = 2.dp),
+                )
+            }
             val current = tab
             if (current == null) {
                 NoTabState(
@@ -276,6 +304,7 @@ fun BrowserScreen(
                 onFind = { vm.showFind() },
                 onExtensionTap = vm::tapExtensionAction,
                 onNewTab = { vm.newTab() },
+                onHideBars = { barsVisible = false },
             )
         }
 
@@ -456,6 +485,45 @@ private fun AddressRow(
     }
 }
 
+/**
+ * Alça das barras: um toque esconde, um toque traz de volta. `show = true` é a versão
+ * flutuante (barras escondidas), `false` é o grabber no topo da barra inferior.
+ */
+@Composable
+private fun BarsHandle(
+    onClick: () -> Unit,
+    show: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        onClick = onClick,
+        shape = MaterialTheme.shapes.extraLarge,
+        color = if (show) MaterialTheme.colorScheme.surfaceContainerHigh else MaterialTheme.colorScheme.surfaceContainer,
+        border = if (show) androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant) else null,
+        modifier = modifier.height(20.dp),
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center,
+            modifier = Modifier.width(if (show) 76.dp else 44.dp),
+        ) {
+            Icon(
+                imageVector = if (show) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                contentDescription = if (show) stringResource(R.string.action_show_bars) else stringResource(R.string.action_hide_bars),
+                modifier = Modifier.size(16.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            if (show) {
+                Text(
+                    stringResource(R.string.action_show_bars),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+    }
+}
+
 @Composable
 private fun BottomBar(
     state: TabUiState?,
@@ -467,12 +535,18 @@ private fun BottomBar(
     onFind: () -> Unit,
     onExtensionTap: (String) -> Unit,
     onNewTab: () -> Unit,
+    onHideBars: () -> Unit,
 ) {
     Column(
         Modifier
             .background(MaterialTheme.colorScheme.surfaceContainer)
             .windowInsetsPadding(WindowInsets.systemBars),
     ) {
+        BarsHandle(
+            onClick = onHideBars,
+            show = false,
+            modifier = Modifier.align(Alignment.CenterHorizontally),
+        )
         if (actions.isNotEmpty()) {
             LazyRow(
                 verticalAlignment = Alignment.CenterVertically,

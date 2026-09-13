@@ -52,6 +52,7 @@ class AppPrefs(private val context: Context) {
         val TOOLBAR_BOTTOM = booleanPreferencesKey("toolbar_bottom")
         val USERSCRIPTS = booleanPreferencesKey("userscripts_enabled")
         val TRACKING_DEFAULT = booleanPreferencesKey("tracking_default")
+        val GPC = booleanPreferencesKey("global_privacy_control")
     }
 
     val settings: Flow<Settings> = context.mobiDataStore.data
@@ -76,6 +77,7 @@ class AppPrefs(private val context: Context) {
     suspend fun setToolbarBottom(bottom: Boolean) = edit { it[Key.TOOLBAR_BOTTOM] = bottom }
     suspend fun setLastUsedTab(id: String) = edit { it[Key.LAST_TAB] = id }
     suspend fun setTrackingProtectionDefault(enabled: Boolean) = edit { it[Key.TRACKING_DEFAULT] = enabled }
+    suspend fun setGlobalPrivacyControl(enabled: Boolean) = edit { it[Key.GPC] = enabled }
 
     suspend fun defaultDesktopMode(): Boolean = snapshot()[Key.DESKTOP_DEFAULT] ?: false
     suspend fun homepage(): String = snapshot()[Key.HOMEPAGE] ?: DEFAULT_HOMEPAGE
@@ -104,6 +106,7 @@ class AppPrefs(private val context: Context) {
         defaultDesktopMode = this[Key.DESKTOP_DEFAULT] ?: false,
         toolbarAtBottom = this[Key.TOOLBAR_BOTTOM] ?: true,
         trackingProtectionDefault = this[Key.TRACKING_DEFAULT] ?: true,
+        globalPrivacyControl = this[Key.GPC] ?: true,
     )
 
     companion object {
@@ -124,4 +127,6 @@ data class Settings(
     val defaultDesktopMode: Boolean = false,
     val toolbarAtBottom: Boolean = true,
     val trackingProtectionDefault: Boolean = true,
+    /** Global Privacy Control (sucessor do DNT): enviado como cabeçalho aos sites. */
+    val globalPrivacyControl: Boolean = true,
 )

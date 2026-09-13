@@ -79,14 +79,17 @@ fun FirstRunSheet(onContinue: () -> Unit) {
                     icon = { Icon(Icons.Default.Bolt, contentDescription = null, tint = MaterialTheme.colorScheme.secondary) },
                     title = "Motor com runtime de extensões",
                     body = "GeckoView (o motor do Firefox) executa WebExtensions de verdade: " +
-                        "content scripts, storage, declarativeNetRequest e popups.",
+                        "content scripts, storage, declarativeNetRequest, popups. Estamos no " +
+                        "canal nightly porque só ele permite instalar pacote sem assinatura da Mozilla.",
                 )
                 ReasonCard(
                     icon = { Icon(Icons.Default.Visibility, contentDescription = null, tint = MaterialTheme.colorScheme.tertiary) },
                     title = "Chrome Web Store, com conversão",
                     body = "Você abre a loja dentro do navegador e toca em instalar. O MobiBrowser baixa " +
-                        "o pacote, converte o manifest (MV2/MV3 → WebExtensions) e instala. Se a assinatura " +
-                        "for recusada, você é avisado e a extensão pode rodar pela ponte de compatibilidade.",
+                        "o pacote, converte o manifest (MV2/MV3 → WebExtensions) e instala no motor. " +
+                        "Se uma API não existir no Firefox, a extensão é convertida mesmo assim e você vê " +
+                        "o que foi descartado; se o motor recusar o pacote, ela roda pela ponte de " +
+                        "compatibilidade.",
                 )
                 ReasonCard(
                     icon = { Icon(Icons.Default.Science, contentDescription = null, tint = MaterialTheme.colorScheme.error) },

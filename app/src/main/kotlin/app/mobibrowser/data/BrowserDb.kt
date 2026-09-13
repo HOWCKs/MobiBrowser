@@ -110,7 +110,7 @@ class BrowserDb(context: Context) : SQLiteOpenHelper(context.applicationContext,
             SELECT url, title, last_visit, visits FROM history
             ORDER BY last_visit DESC LIMIT ?
             """.trimIndent(),
-            limit,
+            arrayOf(limit.toString()),
             ::toHistoryEntry,
         )
 
@@ -168,9 +168,9 @@ class BrowserDb(context: Context) : SQLiteOpenHelper(context.applicationContext,
         writableDatabase.delete("bookmarks", "url = ?", arrayOf(url))
     }
 
-    fun listBookmarks(): List<BookmarkEntry> = query(
-        "SELECT id, url, title, added FROM bookmarks ORDER BY added DESC",
-        500,
+    fun listBookmarks(limit: Int = 500): List<BookmarkEntry> = query(
+        "SELECT id, url, title, added FROM bookmarks ORDER BY added DESC LIMIT ?",
+        arrayOf(limit.toString()),
     ) { c ->
         BookmarkEntry(c.getString(0), c.getString(1), c.getString(2), c.getLong(3))
     }
@@ -270,10 +270,19 @@ class BrowserDb(context: Context) : SQLiteOpenHelper(context.applicationContext,
         writableDatabase.execSQL("DELETE FROM scripts WHERE source_extension IS NOT NULL")
     }
 
-    private fun <T> query(sql: String, limit: Int, mapper: (android.database.Cursor) -> T): List<T> =
-        readableDatabase.rawQuery(sql, arrayOf(limit.toString())).use { c ->
-            buildList { while (c.moveToNext()) add(mapper(c)) }
-        }
+    /**
+     * Sem mágica de `LIMIT`: quem escreve o SQL decide se ele tem `LIMIT ?`, e os argumentos
+     * precisam bater com os `?`. Ligar um argumento a mais é `SQLiteException` em tempo de
+     * uso — exatamente o tipo de coisa que só apareceria no aparelho do usuário, na tela de
+     * favoritos.
+     */
+    private fun <T> query(
+        sql: String,
+        args: Array<String>? = null,
+        mapper: (android.database.Cursor) -> T,
+    ): List<T> = readableDatabase.rawQuery(sql, args).use { c ->
+        buildList { while (c.moveToNext()) add(mapper(c)) }
+    }
 
     private companion object {
         const val DB_NAME = "mobibrowser.db"
