@@ -2,9 +2,8 @@ import java.io.FileInputStream
 import java.util.Properties
 
 plugins {
+    // Só o AGP: Kotlin e o compilador do Compose vêm embutidos no AGP 9 (built-in Kotlin).
     alias(libs.plugins.android.application)
-    alias(libs.plugins.kotlin.android)
-    alias(libs.plugins.kotlin.compose)
 }
 
 /**
@@ -166,6 +165,8 @@ android {
     }
 }
 
+// A extensão `kotlin` aqui é a que o AGP registra (built-in Kotlin) — mesma DSL
+// `kotlin.compilerOptions {}` recomendada na migração de kotlinOptions.
 kotlin {
     compilerOptions {
         jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)

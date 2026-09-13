@@ -66,5 +66,6 @@ kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-t
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
-kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
-kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
+# kotlin-android e kotlin-compose deliberadamente NÃO existem mais: desde o AGP 9 o Kotlin é
+# built-in (aplicar org.jetbrains.kotlin.android falha o build). `kotlin` abaixo fica só como
+# referência da versão do compilador que o toolchain espera (Kotlin 2.4 <-> AGP 9, R8 9.1.29+).
