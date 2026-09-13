@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths>
+    <!-- Pacotes de extensão convertidos, prontos para compartilhar/reinstalar -->
+    <files-path
+        name="extensions"
+        path="extensions/" />
+    <!-- User scripts exportados -->
+    <files-path
+        name="userscripts"
+        path="userscripts/" />
+    <cache-path
+        name="staging"
+        path="ext-staging/" />
+</paths>

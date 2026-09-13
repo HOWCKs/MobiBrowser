@@ -1,0 +1,97 @@
+name: Nightly — release instável rolling
+
+# Todos os dias às 03:00 UTC (00:00 em Brasília) publica/move um GitHub Release
+# de pré-lançamento chamado `nightly`, sempre com o APK mais recente.
+on:
+  schedule:
+    - cron: "0 3 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  nightly:
+    name: Build & publicar nightly
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checar out
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 30
+
+      - name: Configurar JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Configurar Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-read-only: true
+
+      - name: Compilar APKs instáveis
+        run: ./gradlew --no-daemon assembleUnstable --stacktrace --console=plain
+
+      - name: Preparar notas do release
+        id: notes
+        run: |
+          SHA_SHORT="$(git rev-parse --short HEAD)"
+          DATE="$(date -u +%Y-%m-%d)"
+          {
+            echo "sha=$SHA_SHORT" >> "$GITHUB_OUTPUT"
+            echo "tag=nightly" >> "$GITHUB_OUTPUT"
+            echo "title=MobiBrowser nightly $DATE ($SHA_SHORT)" >> "$GITHUB_OUTPUT"
+          }
+          {
+            echo "Build automático noturno — **artefato instável**, não use para navegação sensível (senhas, banco)."
+            echo ""
+            echo "Instale o APK universal (\`app-universal-unstable-*.apk\`) ou o correspondente à sua ABI"
+            echo "(\`arm64-v8a\` é o mais comum em aparelhos recentes)."
+            echo ""
+            echo "### Commits desde o último build"
+            git log -20 --pretty=format:'- %h %s' || true
+            echo ""
+          } > RELEASE_NOTES.md
+
+      - name: Coletar APKs
+        run: |
+          mkdir -p dist
+          find app/build/outputs/apk -name '*.apk' -exec cp {} dist/ \;
+          (cd dist && sha256sum *.apk > SHA256SUMS.txt)
+          ls -la dist
+
+      - name: Criar/mover tag rolling
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -f nightly "$GITHUB_SHA"
+          git push -f origin refs/tags/nightly
+
+      - name: Publicar (ou atualizar) release de pré-lançamento
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if gh release view nightly >/dev/null 2>&1; then
+            gh release edit nightly \
+              --title "${{ steps.notes.outputs.title }}" \
+              --notes-file RELEASE_NOTES.md \
+              --prerelease
+            gh release upload nightly dist/*.apk dist/SHA256SUMS.txt --clobber
+          else
+            gh release create nightly dist/*.apk dist/SHA256SUMS.txt \
+              --title "${{ steps.notes.outputs.title }}" \
+              --notes-file RELEASE_NOTES.md \
+              --prerelease \
+              --target "$GITHUB_SHA"
+          fi
+
+      - name: Também manter artefato no Actions (30 dias)
+        uses: actions/upload-artifact@v4
+        with:
+          name: mobibrowser-nightly-apks
+          path: dist/*.apk
+          retention-days: 30

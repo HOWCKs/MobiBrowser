@@ -1,0 +1,33 @@
+{
+  "manifest_version": 3,
+  "name": "MobiBridge",
+  "version": "0.1.0",
+  "description": "Ponte interna do MobiBrowser: user scripts, CSS do usuário, bloqueio de conteúdo e compatibilidade com content scripts de extensões do Chrome.",
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "mobibridge@mobibrowser.app",
+      "strict_min_version": "128.0"
+    }
+  },
+  "homepage_url": "https://github.com/HOWCKs/MobiBrowser",
+  "permissions": [
+    "tabs",
+    "scripting",
+    "declarativeNetRequest",
+    "storage",
+    "alarms"
+  ],
+  "background": {
+    "scripts": ["background.js"],
+    "persistent": false
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "run_at": "document_start",
+      "all_frames": false,
+      "match_about_blank": false
+    }
+  ]
+}

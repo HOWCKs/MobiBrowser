@@ -1,0 +1,128 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">MobiBrowser</string>
+
+    <!-- Barra de endereço / navegação -->
+    <string name="address_hint">Pesquisar ou digitar URL</string>
+    <string name="action_go">Ir</string>
+    <string name="action_reload">Recarregar</string>
+    <string name="action_stop">Parar</string>
+    <string name="action_back">Voltar</string>
+    <string name="action_forward">Avançar</string>
+    <string name="action_new_tab">Nova aba</string>
+    <string name="action_close_tab">Fechar aba</string>
+    <string name="action_menu">Menu</string>
+    <string name="action_tabs">%1$d abas abertas</string>
+    <string name="action_find_in_page">Buscar na página</string>
+    <string name="action_share">Compartilhar</string>
+    <string name="action_bookmark_add">Adicionar aos favoritos</string>
+    <string name="action_bookmark_remove">Remover dos favoritos</string>
+    <string name="action_desktop_site">Versão para computador</string>
+    <string name="action_mobile_site">Versão para celular</string>
+    <string name="action_print">Imprimir / PDF</string>
+    <string name="download_started">Download iniciado: %1$s</string>
+    <string name="find_next">Próximo</string>
+    <string name="find_prev">Anterior</string>
+    <string name="find_close">Fechar busca</string>
+    <string name="find_no_results">Nada encontrado</string>
+    <string name="secure_connection">Conexão segura</string>
+    <string name="insecure_connection">Conexão não segura</string>
+
+    <!-- Abas -->
+    <string name="tabs_title">Abas</string>
+    <string name="tabs_normal">Normais</string>
+    <string name="tabs_private">Anônimas</string>
+    <string name="tabs_close_all">Fechar todas</string>
+    <string name="tabs_empty">Nenhuma aba</string>
+
+    <!-- Extensões -->
+    <string name="extensions_title">Extensões</string>
+    <string name="extensions_none">Nenhuma extensão instalada</string>
+    <string name="extensions_none_hint">Instale uma extensão da Chrome Web Store ou um arquivo .crx/.xpi do seu aparelho.</string>
+    <string name="extensions_install_store">Instalar da Chrome Web Store</string>
+    <string name="extensions_install_file">Instalar de arquivo (.crx/.xpi/.zip)</string>
+    <string name="extensions_open_store">Abrir a Chrome Web Store</string>
+    <string name="extensions_store_hint">Navegue pela loja dentro do MobiBrowser. Quando estiver na página de uma extensão, o MobiBrowser oferece instalá-la.</string>
+    <string name="extensions_store_banner">Extensão detectada nesta página — instalar</string>
+    <string name="extensions_paste_id">Colar ID ou URL da loja</string>
+    <string name="extensions_id_or_url">ID da extensão ou URL da Chrome Web Store</string>
+    <string name="extensions_install_action">Instalar</string>
+    <string name="extensions_installing">Instalando %1$s…</string>
+    <string name="extensions_installed">Instalada</string>
+    <string name="extensions_install_failed">Não foi possível instalar</string>
+    <string name="extensions_enable">Ativar</string>
+    <string name="extensions_disable">Desativar</string>
+    <string name="extensions_uninstall">Desinstalar</string>
+    <string name="extensions_details">Detalhes e permissões</string>
+    <string name="extensions_run_site">Executar neste site</string>
+    <string name="extensions_run_all_sites">Permitido em todos os sites</string>
+    <string name="extensions_run_ask">Perguntar em cada site</string>
+    <string name="extensions_private">Permitir em abas anônimas</string>
+    <string name="extensions_permissions_title">Permissões solicitadas</string>
+    <string name="extensions_origins_title">Acesso aos sites</string>
+    <string name="extensions_source_native">Motor (GeckoView, executada como extensão real)</string>
+    <string name="extensions_source_bridge">Compatibilidade (content scripts via MobiBridge)</string>
+    <string name="extensions_bridge_warning">O GeckoView só instala extensões assinadas pela Mozilla. Esta extensão foi convertida e está rodando pela ponte de compatibilidade do MobiBrowser: os content scripts e estilos funcionam, mas APIs privilegiadas (webRequest bloqueante, debugger, tabCapture) não estão disponíveis.</string>
+    <string name="extensions_update_available">Atualização disponível</string>
+    <string name="extensions_check_updates">Verificar atualizações</string>
+    <string name="extensions_blocked_count">%1$d requisições bloqueadas nesta página</string>
+    <string name="extensions_popup">Popup da extensão</string>
+
+    <!-- User scripts / CSS -->
+    <string name="userscripts_title">User scripts e estilos</string>
+    <string name="userscripts_none">Nenhum script ou estilo seu ainda</string>
+    <string name="userscripts_add_script">Novo user script</string>
+    <string name="userscripts_add_css">Novo estilo (CSS)</string>
+    <string name="userscripts_name">Nome</string>
+    <string name="userscripts_pattern">Padrão de sites (ex.: *://*.exemplo.com/*)</string>
+    <string name="userscripts_code">Código</string>
+    <string name="userscripts_save">Salvar</string>
+    <string name="userscripts_delete">Excluir</string>
+    <string name="userscripts_import">Importar .user.js</string>
+    <string name="userscripts_hint">Rodam em todas as páginas que baterem com o padrão, com um shim de chrome.* e GM_* básicos.</string>
+
+    <!-- Configurações -->
+    <string name="settings_title">Configurações</string>
+    <string name="settings_appearance">Aparência</string>
+    <string name="settings_theme">Tema</string>
+    <string name="settings_theme_system">Seguir o sistema</string>
+    <string name="settings_theme_light">Claro</string>
+    <string name="settings_theme_dark">Escuro</string>
+    <string name="settings_dynamic_color">Cores do papel de parede</string>
+    <string name="settings_expressive">Movimento expressivo (molas e gestos)</string>
+    <string name="settings_privacy">Privacidade e bloqueio</string>
+    <string name="settings_tracking_protection">Proteção contra rastreamento</string>
+    <string name="settings_tp_standard">Padrão</string>
+    <string name="settings_tp_strict">Rigorosa (por aba)</string>
+    <string name="settings_tp_off">Desligada</string>
+    <string name="settings_js">JavaScript</string>
+    <string name="settings_engine">Motor</string>
+    <string name="settings_geckoview_version">GeckoView %1$s</string>
+    <string name="settings_clear_data">Limpar histórico, cache e cookies</string>
+    <string name="settings_clear_done">Dados de navegação limpos</string>
+    <string name="settings_about">Sobre</string>
+    <string name="settings_build">Compilação %1$s</string>
+
+    <!-- Histórico e favoritos -->
+    <string name="library_history">Histórico</string>
+    <string name="library_bookmarks">Favoritos</string>
+    <string name="library_empty">Nada por aqui ainda</string>
+    <string name="library_search">Buscar no histórico</string>
+
+    <!-- Permissões -->
+    <string name="permission_request_title">Permissão do site</string>
+    <string name="permission_allow">Permitir</string>
+    <string name="permission_deny">Bloquear</string>
+
+    <!-- Primeiro uso -->
+    <string name="first_run_title">Navegador com extensões de verdade</string>
+    <string name="first_run_body">O MobiBrowser usa o motor GeckoView e instala extensões no formato WebExtensions: da Chrome Web Store (convertendo o manifest) ou de arquivos .crx/.xpi do aparelho. Também roda user scripts e CSS por sua conta.</string>
+    <string name="first_run_body_2">É um build instável: use para testar e relatar problemas. Evite acessar contas sensíveis.</string>
+    <string name="first_run_cta">Começar</string>
+
+    <string name="ok">OK</string>
+    <string name="cancel">Cancelar</string>
+    <string name="close">Fechar</string>
+    <string name="crashed_tab">Esta aba travou</string>
+    <string name="crash_restore">Restaurar aba</string>
+</resources>

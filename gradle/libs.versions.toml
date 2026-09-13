@@ -1,0 +1,54 @@
+[versions]
+# Stack: Kotlin + Jetpack Compose (Material 3) + GeckoView. Sem React, sem JS bridge.
+# Versões escolhidas por serem estáveis e mutuamente compatíveis (AGP 8.7 exige Gradle >= 8.9).
+agp = "8.7.3"
+kotlin = "2.1.20"
+composeBom = "2025.04.01"
+
+# Motor de navegação: GeckoView (runtime real de WebExtensions, declarativeNetRequest, popups).
+geckoview = "155.0.20260903215306"
+
+coreKtx = "1.15.0"
+appcompat = "1.7.0"
+activityCompose = "1.10.1"
+lifecycle = "2.8.7"
+datastore = "1.1.2"
+coroutines = "1.9.0"
+junit = "4.13.2"
+# Implementação real de org.json: dentro de testes JVM o android.jar só expõe stubs
+# que lançam "not mocked", e o conversor de manifest é todo em JSONObject.
+json = "20240303"
+
+[libraries]
+geckoview = { module = "org.mozilla.geckoview:geckoview", version.ref = "geckoview" }
+
+androidx-core-ktx = { module = "androidx.core:core-ktx", version.ref = "coreKtx" }
+androidx-appcompat = { module = "androidx.appcompat:appcompat", version.ref = "appcompat" }
+androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "activityCompose" }
+
+androidx-lifecycle-runtime-ktx = { module = "androidx.lifecycle:lifecycle-runtime-ktx", version.ref = "lifecycle" }
+androidx-lifecycle-runtime-compose = { module = "androidx.lifecycle:lifecycle-runtime-compose", version.ref = "lifecycle" }
+androidx-lifecycle-viewmodel-compose = { module = "androidx.lifecycle:lifecycle-viewmodel-compose", version.ref = "lifecycle" }
+
+androidx-datastore-preferences = { module = "androidx.datastore:datastore-preferences", version.ref = "datastore" }
+
+kotlinx-coroutines-android = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-android", version.ref = "coroutines" }
+
+compose-bom = { module = "androidx.compose:compose-bom", version.ref = "composeBom" }
+compose-ui = { module = "androidx.compose.ui:ui" }
+compose-ui-graphics = { module = "androidx.compose.ui:ui-graphics" }
+compose-ui-tooling = { module = "androidx.compose.ui:ui-tooling" }
+compose-ui-tooling-preview = { module = "androidx.compose.ui:ui-tooling-preview" }
+compose-foundation = { module = "androidx.compose.foundation:foundation" }
+compose-material3 = { module = "androidx.compose.material3:material3" }
+compose-material3-window = { module = "androidx.compose.material3:material3-window-size-class" }
+compose-material-icons-extended = { module = "androidx.compose.material:material-icons-extended" }
+
+junit = { module = "junit:junit", version.ref = "junit" }
+json = { module = "org.json:json", version.ref = "json" }
+kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "coroutines" }
+
+[plugins]
+android-application = { id = "com.android.application", version.ref = "agp" }
+kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
+kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }

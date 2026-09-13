@@ -1,0 +1,71 @@
+name: CI — APK instável
+
+on:
+  push:
+    branches: ["**"]
+    tags-ignore: ["v*"]
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      build_type:
+        description: "Build type a compilar"
+        required: false
+        default: "unstable"
+        type: choice
+        options: ["unstable", "debug", "release"]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  apk:
+    name: Compilar APK (${{ github.event.inputs.build_type || 'unstable' }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checar out
+        uses: actions/checkout@v4
+
+      - name: Configurar JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Configurar Gradle (com cache de dependências)
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-read-only: ${{ github.ref != 'refs/heads/main' }}
+
+      - name: Lógica pura (conversor de manifest, parser de CRX)
+        run: ./gradlew --no-daemon testUnstableUnitTest --stacktrace
+
+      - name: Compilar APKs (universal + por ABI)
+        run: ./gradlew --no-daemon assemble${{ github.event.inputs.build_type || 'unstable' }} --stacktrace --console=plain
+
+      - name: Resumo do build
+        run: |
+          {
+            echo "## APKs gerados"
+            echo ""
+            echo "| arquivo | tamanho |"
+            echo "|---|---|"
+            find app/build/outputs/apk -name '*.apk' -printf '%P\t%s\n' \
+              | awk -F'\t' '{ printf "| %s | %.1f MB |\n", $1, $2/1024/1024 }'
+            echo ""
+            echo "Artefato **instável**: assinatura de debug, sem ofuscação, logcat do motor ligado."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Publicar artefato instável
+        uses: actions/upload-artifact@v4
+        with:
+          name: mobibrowser-apk-${{ github.sha }}
+          path: app/build/outputs/apk/**/*.apk
+          if-no-files-found: error
+          compression-level: 6
+          retention-days: 30

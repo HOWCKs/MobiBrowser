@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Cor fixa do ícone (usada fora do Material You / em widgets) -->
+    <color name="ic_launcher_background">#0B1220</color>
+    <color name="mobi_background">#FBF8FF</color>
+    <color name="mobi_background_dark">#12131A</color>
+</resources>

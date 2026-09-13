@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Idioma-fonte é pt-BR (values/). Aqui fica a tradução en para o app ser
+  usado sem ajuste em aparelhos com sistema em inglês.
+-->
+<resources>
+    <string name="app_name">MobiBrowser</string>
+    <string name="address_hint">Search or enter address</string>
+    <string name="extensions_title">Extensions</string>
+    <string name="extensions_none">No extensions installed</string>
+    <string name="extensions_none_hint">Install one from the Chrome Web Store, or pick a .crx/.xpi file on this device.</string>
+    <string name="extensions_install_store">Install from Chrome Web Store</string>
+    <string name="extensions_install_file">Install from file (.crx/.xpi/.zip)</string>
+    <string name="extensions_open_store">Open Chrome Web Store</string>
+    <string name="extensions_store_hint">Browse the store inside MobiBrowser. When you land on an extension page, MobiBrowser offers to install it.</string>
+    <string name="extensions_store_banner">Extension detected on this page — install</string>
+    <string name="extensions_install_failed">Could not install</string>
+    <string name="extensions_source_native">Engine (GeckoView, real WebExtension)</string>
+    <string name="extensions_source_bridge">Compatibility (content scripts via MobiBridge)</string>
+    <string name="extensions_bridge_warning">GeckoView only installs Mozilla-signed extensions. This one was converted and runs through MobiBrowser compatibility bridge: content scripts and styles work, privileged APIs (blocking webRequest, debugger, tabCapture) do not.</string>
+    <string name="userscripts_title">User scripts &amp; styles</string>
+    <string name="settings_title">Settings</string>
+    <string name="first_run_title">A browser with real extensions</string>
+    <string name="first_run_body">MobiBrowser runs on GeckoView and installs WebExtensions: from the Chrome Web Store (manifest converted for you) or from local .crx/.xpi files. It also runs your own user scripts and CSS.</string>
+    <string name="first_run_body_2">This is an unstable build: test it and report what breaks. Avoid sensitive accounts.</string>
+    <string name="first_run_cta">Start browsing</string>
+</resources>

@@ -1,0 +1,29 @@
+# Build
+*.iml
+.gradle/
+local.properties
+.idea/
+*.kts~
+app/build/
+build/
+captures/
+.externalNativeBuild/
+.cxx/
+.kotlin/
+
+# Artefatos (CI publica no GitHub, não no git)
+*.apk
+*.aab
+*.ap_
+dist/
+keystore.properties
+*.jks
+*.keystore
+
+# Extensões empacotadas para sideload local (grandes/binárias)
+/app/src/main/assets/extensions/*
+!/app/src/main/assets/extensions/mobibridge/
+
+# Sistema
+.DS_Store
+Thumbs.db
