@@ -33,9 +33,10 @@ junit = "4.13.2"
 json = "20240303"
 
 [libraries]
-# "omni" = recorte do GeckoView com todas as features do navegador (é o que o Firefox Android
-# usa via android-components); o recorte enxuto não traz partes do runtime de extensões.
-geckoview-nightly = { module = "org.mozilla.geckoview:geckoview-omni-nightly", version.ref = "geckoview" }
+# Nome do artifact: o sufixo vem por último (`geckoview-<canal>-omni`, `geckoview-omni`).
+# "omni" = recorte com todas as features do navegador (é o que o Firefox Android usa via
+# android-components); o recorte enxuto não traz partes do runtime de extensões.
+geckoview-nightly = { module = "org.mozilla.geckoview:geckoview-nightly-omni", version.ref = "geckoview" }
 geckoview-release = { module = "org.mozilla.geckoview:geckoview-omni", version.ref = "geckoviewRelease" }
 
 androidx-core-ktx = { module = "androidx.core:core-ktx", version.ref = "coreKtx" }

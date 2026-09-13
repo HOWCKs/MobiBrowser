@@ -32,7 +32,7 @@ Isso dá um runtime real de WebExtensions: content scripts, CSS injetado, `stora
 ### Canal do motor (importante)
 
 O app roda sobre o **GeckoView do canal nightly** (`geckoviewChannel = "nightly"` em
-`gradle/libs.versions.toml`). Motivo: no canal de release o motor **recusa add-on sem
+`gradle/libs.versions.toml`, artifact `org.mozilla.geckoview:geckoview-nightly-omni`). Motivo: no canal de release o motor **recusa add-on sem
 assinatura da Mozilla**, e um pacote convertido da Chrome Web Store nunca tem essa
 assinatura — sem isso, o diferencial do app não existiria. No nightly o MobiBrowser escreve
 um YAML de configuração do GeckoView (`GeckoEngine.debugConfigPath`) com

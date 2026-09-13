@@ -98,4 +98,4 @@ jobs:
           path: app/build/outputs/apk/**/*.apk
           if-no-files-found: error
           compression-level: 6
-          retention-days: 30
+          retention-days: 7
