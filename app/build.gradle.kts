@@ -8,7 +8,7 @@ plugins {
 }
 
 /**
- * Commit atual (ou "desconhecido" fora de checkout git). Vira `BuildConfig.GIT_SHA`,
+        buildConfigField("String", "GIT_SHA", "\" + gitSha() + \"")
  * aparece na tela "Sobre" e no nome dos artefatos do CI — sem isso é impossível
  * correlacionar o feedback do aparelho com uma compilação específica.
  */
@@ -53,7 +53,7 @@ android {
         buildConfigField("String", "GECKOVIEW_VERSION", "\"${libs.versions.geckoview.get()}\"")
         // Canal da Chrome Web Store usado no endpoint de download de CRX.
         buildConfigField("String", "CWS_PRODVERSION", "\"139.0.0.0\"")
-        buildConfigField("String", "GIT_SHA", "\"${gitSha()}\")"
+        buildConfigField("String", "GIT_SHA", "\" + gitSha() + \"")
         buildConfigField("boolean", "MOBI_DEBUG_LOGS", "true")
     }
 
