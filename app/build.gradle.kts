@@ -44,10 +44,12 @@ val allowUnsignedAddons: Boolean = geckoChannel != "release"
 
 android {
     namespace = "app.mobibrowser"
-    // API 37: exigida pelo Compose/Material 3 atuais. targetSdk fica em 35 de propósito —
-    // o app não precisa das mudanças de comportamento de 36/37 e o gesture back preditivo
-    // continua sob controle do BackHandler do Compose.
+    // API 37.1: o AAR do GeckoView nightly declara "requires ... version 37.1 or later", e
+    // nível menor de API (QPR) se expressa com compileSdkMinor desde o AGP 8.13/9.
+    // targetSdk fica em 35 de propósito — o app não precisa das mudanças de comportamento de
+    // 36/37 e o gesture back preditivo continua sob controle do BackHandler do Compose.
     compileSdk = 37
+    compileSdkMinor = 1
 
     defaultConfig {
         applicationId = "app.mobibrowser"

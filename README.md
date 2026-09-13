@@ -152,8 +152,8 @@ composables puros e o custo de trocar de motor fica confinado em `core/engine/`.
 ## Desenvolvimento
 
 O repositório é compilado **pelo GitHub Actions** (JDK 17 + AGP 9.3.2 + Gradle 9.7.1 +
-Kotlin 2.4.20 + Compose BOM 2026.09.00); a mesma sequência roda local. `compileSdk` é 37 e
-`targetSdk` continua 35: o Material 3 atual exige compilar contra 37, e manter o alvo em 35
+Kotlin 2.4.20 + Compose BOM 2026.09.00); a mesma sequência roda local. `compileSdk` é 37.1 (nível menor de API, exigido
+pelo AAR do GeckoView nightly) e `targetSdk` continua 35: o Material 3 atual exige compilar contra 37, e manter o alvo em 35
 deixa o comportamento de barras/gestos exatamente como o app foi desenhado.
 
 ```bash
@@ -174,7 +174,7 @@ artefato nem é publicado. O `nightly.yml` abre/repõe um *GitHub Release* marca
 
 Requisitos de versão: `minSdk 26` (se o `checkAarMetadata` reclamar do nightly, o número
 sobe para o mínimo do motor — é decisão de produto, não de gosto), `targetSdk 35`,
-`compileSdk 37`, `geckoviewChannel = "nightly"` com versão `158.+`.
+`compileSdk 37` + `compileSdkMinor 1`, `geckoviewChannel = "nightly"` com versão `158.+`.
 Mudar o canal/versão em `gradle/libs.versions.toml` muda o runtime de extensões inteiro:
 por isso o release fica pinado (`155.0.20260903215306`) e só o nightly é dinâmico.
 
