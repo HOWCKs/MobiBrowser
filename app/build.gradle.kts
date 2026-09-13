@@ -35,11 +35,17 @@ val keystoreProps = Properties().apply {
 }
 val hasReleaseKeystore: Boolean = keystoreProps.getProperty("storeFile") != null
 
+/** Canal do motor (ver [versions] em gradle/libs.versions.toml). Define o artifact e se o
+ * app pode pedir ao Gecko para aceitar add-on sem assinatura. */
+val geckoChannel: String = libs.versions.geckoviewChannel.get()
+val allowUnsignedAddons: Boolean = geckoChannel != "release"
+
 android {
     namespace = "app.mobibrowser"
-    // 36 porque o AndroidX atual exige; targetSdk continua 35 (decisão do plano: mesmo
-    // comportamento de edge-to-edge/permissoes, sem aderir ainda às mudanças do Android 16).
-    compileSdk = 36
+    // API 37: exigida pelo Compose/Material 3 atuais. targetSdk fica em 35 de propósito —
+    // o app não precisa das mudanças de comportamento de 36/37 e o gesture back preditivo
+    // continua sob controle do BackHandler do Compose.
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "app.mobibrowser"
@@ -48,11 +54,21 @@ android {
         versionCode = 1
         versionName = "0.1.0"
 
-        resourceConfigurations += listOf("pt-rBR", "en")
+        // AGP 9 removeu resourceConfigurations: o filtro de idioma é androidResources.localeFilters.
+        androidResources { localeFilters += listOf("pt-BR", "en") }
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
-        buildConfigField("String", "GECKOVIEW_VERSION", "\"${libs.versions.geckoview.get()}\"")
+        // O que a UI e o log mostram como "versão do motor": no nightly o artifact é
+        // dinâmico (158.+), então rotulamos o canal em vez de fingir um pin exato.
+        val geckoVersionLabel = if (geckoChannel == "release") {
+            libs.versions.geckoviewRelease.get()
+        } else {
+            "nightly ${libs.versions.geckoview.get()}"
+        }
+        buildConfigField("String", "GECKOVIEW_VERSION", "\"" + geckoVersionLabel + "\"")
+        buildConfigField("String", "GECKOVIEW_CHANNEL", "\"" + geckoChannel + "\"")
+        buildConfigField("boolean", "MOBI_ALLOW_UNSIGNED_ADDONS", allowUnsignedAddons.toString())
         // Canal da Chrome Web Store usado no endpoint de download de CRX.
         buildConfigField("String", "CWS_PRODVERSION", "\"139.0.0.0\"")
         buildConfigField("String", "GIT_SHA", "\" + gitSha() + \"")
@@ -165,7 +181,11 @@ kotlin {
 }
 
 dependencies {
-    implementation(libs.geckoview)
+    if (geckoChannel == "release") {
+        implementation(libs.geckoview.release)
+    } else {
+        implementation(libs.geckoview.nightly)
+    }
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.appcompat)
