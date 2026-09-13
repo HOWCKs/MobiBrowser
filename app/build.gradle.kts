@@ -53,6 +53,7 @@ android {
         buildConfigField("String", "GECKOVIEW_VERSION", "\"${libs.versions.geckoview.get()}\"")
         // Canal da Chrome Web Store usado no endpoint de download de CRX.
         buildConfigField("String", "CWS_PRODVERSION", "\"139.0.0.0\"")
+        buildConfigField("String", "GIT_SHA", "\"${gitSha()}\")"
         buildConfigField("boolean", "MOBI_DEBUG_LOGS", "true")
     }
 
@@ -150,7 +151,9 @@ android {
 kotlin {
     compilerOptions {
         jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
-        freeCompilerArgs += listOf(
+        // `ListProperty`, portanto `addAll` (o operador `+=` não existe aqui e o
+        // script do Gradle não compila com ele).
+        freeCompilerArgs.addAll(
             "-opt-in=kotlin.RequiresOptIn",
             "-opt-in=androidx.compose.material3.ExperimentalMaterial3Api",
             "-opt-in=androidx.compose.foundation.ExperimentalFoundationApi",
@@ -177,7 +180,6 @@ dependencies {
     implementation(libs.compose.ui.tooling.preview)
     implementation(libs.compose.foundation)
     implementation(libs.compose.material3)
-    implementation(libs.compose.material3.window)
     implementation(libs.compose.material.icons.extended)
     debugImplementation(libs.compose.ui.tooling)
 

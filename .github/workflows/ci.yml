@@ -1,5 +1,8 @@
 name: CI — APK instável
 
+# Todo push e toda PR geram um APK de pré-lançamento. Não há etapa de QA antes:
+# o artefato é instalado no aparelho e o feedback volta como issue.
+
 on:
   push:
     branches: ["**"]
@@ -43,20 +46,45 @@ jobs:
           cache-read-only: ${{ github.ref != 'refs/heads/main' }}
 
       - name: Lógica pura (conversor de manifest, parser de CRX)
-        run: ./gradlew --no-daemon testUnstableUnitTest --stacktrace
+        run: |
+          set -o pipefail
+          ./gradlew --no-daemon --console=plain testUnstableUnitTest --stacktrace \
+            2>&1 | tee /tmp/gradle-test.log
 
       - name: Compilar APKs (universal + por ABI)
-        run: ./gradlew --no-daemon assemble${{ github.event.inputs.build_type || 'unstable' }} --stacktrace --console=plain
+        run: |
+          set -o pipefail
+          ./gradlew --no-daemon --console=plain \
+            assemble${{ github.event.inputs.build_type || 'unstable' }} --stacktrace \
+            2>&1 | tee /tmp/gradle-apk.log
+
+      # Erros de compilação viram anotações: dá para lê-los pela API de checks e eles
+      # aparecem no diff da PR, em vez de enterrados em 4 mil linhas de stack trace.
+      - name: Publicar erros como anotações
+        if: failure()
+        run: python3 tools/ci-annotate.py /tmp/gradle-test.log /tmp/gradle-apk.log
+
+      - name: Publicar relatório de testes
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: relatorio-testes-${{ github.sha }}
+          path: app/build/reports/tests/**
+          if-no-files-found: ignore
+          retention-days: 14
 
       - name: Resumo do build
+        if: always()
         run: |
           {
             echo "## APKs gerados"
             echo ""
             echo "| arquivo | tamanho |"
             echo "|---|---|"
-            find app/build/outputs/apk -name '*.apk' -printf '%P\t%s\n' \
+            find app/build/outputs/apk -name '*.apk' -printf '%P\t%s\n' 2>/dev/null \
               | awk -F'\t' '{ printf "| %s | %.1f MB |\n", $1, $2/1024/1024 }'
+            echo ""
+            echo "Commit curto: \`${GITHUB_SHA:0:7}\` (aparece em Configurações → Sobre no app)."
             echo ""
             echo "Artefato **instável**: assinatura de debug, sem ofuscação, logcat do motor ligado."
           } >> "$GITHUB_STEP_SUMMARY"

@@ -34,7 +34,14 @@ jobs:
           cache-read-only: true
 
       - name: Compilar APKs instáveis
-        run: ./gradlew --no-daemon assembleUnstable --stacktrace --console=plain
+        run: |
+          set -o pipefail
+          ./gradlew --no-daemon --console=plain assembleUnstable --stacktrace \
+            2>&1 | tee /tmp/gradle-apk.log
+
+      - name: Publicar erros como anotações
+        if: failure()
+        run: python3 tools/ci-annotate.py /tmp/gradle-apk.log
 
       - name: Preparar notas do release
         id: notes
