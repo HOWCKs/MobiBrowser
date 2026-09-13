@@ -66,6 +66,9 @@ kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-t
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
-# kotlin-android e kotlin-compose deliberadamente NÃO existem mais: desde o AGP 9 o Kotlin é
-# built-in (aplicar org.jetbrains.kotlin.android falha o build). `kotlin` abaixo fica só como
-# referência da versão do compilador que o toolchain espera (Kotlin 2.4 <-> AGP 9, R8 9.1.29+).
+# kotlin-android NÃO existe mais: desde o AGP 9 o Kotlin é built-in (aplicar
+# org.jetbrains.kotlin.android falha o build). O plugin do compilador do Compose, porém,
+# continua obrigatório quando buildFeatures.compose = true — a mensagem é explícita:
+# "Starting in Kotlin 2.0, the Compose Compiler Gradle plugin is required when compose is
+# enabled" (https://d.android.com/r/studio-ui/compose-compiler).
+kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }

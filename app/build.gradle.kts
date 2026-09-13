@@ -2,8 +2,11 @@ import java.io.FileInputStream
 import java.util.Properties
 
 plugins {
-    // Só o AGP: Kotlin e o compilador do Compose vêm embutidos no AGP 9 (built-in Kotlin).
+    // O AGP 9 traz o Kotlin embutido (built-in Kotlin), então NÃO se aplica mais
+    // org.jetbrains.kotlin.android. O plugin do compilador do Compose continua necessário:
+    // sem ele, buildFeatures.compose = true falha na configuração do projeto.
     alias(libs.plugins.android.application)
+    alias(libs.plugins.kotlin.compose)
 }
 
 /**

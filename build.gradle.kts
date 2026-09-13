@@ -4,6 +4,7 @@
 // Ver developer.android.com/build/migrate-to-built-in-kotlin.
 plugins {
     alias(libs.plugins.android.application) apply false
+    alias(libs.plugins.kotlin.compose) apply false
 }
 
 // Tarefa utilitária: `./gradlew apks` mostra os APKs gerados no último build.
