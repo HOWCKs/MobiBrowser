@@ -1,7 +1,10 @@
 [versions]
 # Stack: Kotlin + Jetpack Compose (Material 3) + GeckoView. Sem React, sem JS bridge.
-# Versões escolhidas por serem estáveis e mutuamente compatíveis (AGP 8.7 exige Gradle >= 8.9).
-agp = "8.7.3"
+# Matriz de compatibilidade (documentada pelo Android): AGP 8.13 exige Gradle >= 8.13 e é a
+# última série 8.x — a 9.x pede Gradle 9.6 e DSL nova, sem ganho para este projeto.
+# compileSdk 36 não é opção: as bibliotecas AndroidX de 2025 recusam compilar contra 35
+# (a falha aparece em :app:checkUnstableAarMetadata), mesmo com targetSdk 35.
+agp = "8.13.2"
 kotlin = "2.1.20"
 composeBom = "2025.04.01"
 

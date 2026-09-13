@@ -137,8 +137,9 @@ composables puros e o custo de trocar de motor fica confinado em `core/engine/`.
 
 ## Desenvolvimento
 
-O repositório é compilado **pelo GitHub Actions** (JDK 17 + AGP 8.6.3 + Android SDK 35);
-a mesma sequência roda local:
+O repositório é compilado **pelo GitHub Actions** (JDK 17 + AGP 8.13.2 + Gradle 8.14.3 +
+Android SDK *build tools* 36); a mesma sequência roda local. `compileSdk` é 36 porque as
+bibliotecas AndroidX atuais recusam compilar contra 35; `targetSdk` continua 35.
 
 ```bash
 ./gradlew test                                   # lógica pura (conversor, CRX, patterns)
@@ -155,7 +156,7 @@ O workflow roda os testes antes de `assembleUnstable`: se a conversão de manife
 artefato nem é publicado. O `nightly.yml` abre/repõe um *GitHub Release* marcado
 `prerelease` + `instável` com os APKs anexados.
 
-Requisitos de versão: `minSdk 26`, `targetSdk 35`, `compileSdk 35`,
+Requisitos de versão: `minSdk 26`, `targetSdk 35`, `compileSdk 36`,
 GeckoView fixado em `155.0.20260903215306` (canal *release*, assinado pela Mozilla).
 Mudar o `GECKOVIEW_VERSION` em `gradle/libs.versions.toml` muda o runtime de extensões
 inteiro — por isso está travado e não em `[0, +)`.

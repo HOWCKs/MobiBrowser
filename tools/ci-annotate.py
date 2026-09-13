@@ -28,9 +28,13 @@ JAVAC_ERROR = re.compile(r"^(?P<path>[\w./-]+\.(?:java|kt)):(?P<line>\d+):\s*err
 TASK_FAILED = re.compile(r"^> Task (?P<task>[^\s]+) FAILED")
 # Teste que falhou: `MinhaClasse > um teste FAILED`
 TEST_FAILED = re.compile(r"^(?P<cls>[\w.$]+) > (?P<test>[^\s].*?) FAILED")
-# Bloco "What went wrong" do Gradle: pegar a primeira linha após o cabeçalho
+# Bloco "What went wrong" do Gradle: a mensagem vem em `>` e as aninhadas em `   >`
 WENT_WRONG = re.compile(r"^\* What went wrong:")
-GRADLE_CAUSE = re.compile(r"^>\s+(?P<msg>.+)$")
+GRADLE_CAUSE = re.compile(r"^\s{0,6}>\s+(?P<msg>.+)$")
+# AAR metadata / toolchain: essas linhas não vêm com prefixo nenhum e são as mais
+# acionáveis de um build Android ("upgrade to version 36", "minSdkVersion 28", ...).
+DEPENDENCY_REQUIRES = re.compile(r"^(?:ERROR:\s*|WARNING:\s*)?(?P<msg>Dependency '[^']+'.*)$")
+COMPILE_AGAINST = re.compile(r"^(?P<msg>(?:ERROR:\s*)?.*(?:requires libraries and applications|you need to upgrade to|compileSdkVersion|AgpVersionChecker).*)$")
 
 MAX_PER_KIND = 45
 MAX_TOTAL = 120
@@ -113,6 +117,24 @@ def main() -> int:
                 emit("error", f"task do Gradle falhou: {match.group('task')}", None, None)
                 continue
 
+            match = DEPENDENCY_REQUIRES.match(line)
+            if match and counts["gradle"] < MAX_PER_KIND and "requires" in match.group("msg"):
+                counts["gradle"] += 1
+                total += 1
+                emit("error", match.group("msg").strip(), None, None)
+                continue
+
+            match = COMPILE_AGAINST.match(line)
+            if (
+                match
+                and counts["gradle"] < MAX_PER_KIND
+                and ("upgrade to" in match.group("msg") or "compile against" in match.group("msg"))
+            ):
+                counts["gradle"] += 1
+                total += 1
+                emit("error", re.sub(r"\s+", " ", match.group("msg")).strip(), None, None)
+                continue
+
             if WENT_WRONG.match(line):
                 what_went_wrong_pending = True
                 continue
@@ -123,7 +145,7 @@ def main() -> int:
                     counts["gradle"] += 1
                     total += 1
                     emit("error", f"causa: {match.group('msg').strip()}", None, None)
-                elif line.strip() == "" or line.startswith("*"):
+                elif line.strip() == "" or (line.startswith("*") and not line.lstrip().startswith(">")):
                     what_went_wrong_pending = False
 
     if total == 0:

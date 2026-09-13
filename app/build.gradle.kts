@@ -37,7 +37,9 @@ val hasReleaseKeystore: Boolean = keystoreProps.getProperty("storeFile") != null
 
 android {
     namespace = "app.mobibrowser"
-    compileSdk = 35
+    // 36 porque o AndroidX atual exige; targetSdk continua 35 (decisão do plano: mesmo
+    // comportamento de edge-to-edge/permissoes, sem aderir ainda às mudanças do Android 16).
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "app.mobibrowser"
