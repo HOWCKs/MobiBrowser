@@ -139,9 +139,15 @@ class GeckoEngine(context: Context) {
         return GeckoSession(settings)
     }
 
-    /** Limpa cache/cookies do perfil do motor. O banco do app é limpo à parte. */
+    /**
+     * Limpa cache/cookies do perfil do motor. O banco do app é limpo à parte.
+     * Em `StorageController.clearData(long flags)` os flags vêm de
+     * `StorageController.ClearFlags.*` (o atalho `GeckoRuntime.clearData` não existe no
+     * motor; os inteiros de limpeza saíram de `StorageController` para a classe aninhada
+     * `ClearFlags` — por isso o `ALL` solto não resolvia).
+     */
     fun clearEngineData() {
-        runCatching { runtime.clearData(StorageController.ALL) }
+        runCatching { runtime.storageController.clearData(StorageController.ClearFlags.ALL) }
             .onFailure { MobiLog.w(SCOPE, "clearData falhou", it) }
     }
 

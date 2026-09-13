@@ -72,12 +72,11 @@ class MobiApplication : Application() {
 
     }
 
-    override fun onNewIntent(intent: Intent) {
-        super.onNewIntent(intent)
-        pendingIntentUrl = intent.getStringExtra(Intent.EXTRA_TEXT)
-            ?: intent.data?.toString()
-    }
-
+    /**
+     * Link capturado antes de a Activity existir (cold start por VIEW/SEND). O `onNewIntent`
+     * de runtime vivo é tratado pela MainActivity, que repassa para a ViewModel — Application
+     * não tem esse callback, por isso não há override aqui.
+     */
     fun consumePendingUrl(): String? = pendingIntentUrl.also { pendingIntentUrl = null }
 
     override fun onLowMemory() {
