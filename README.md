@@ -159,7 +159,8 @@ deixa o comportamento de barras/gestos exatamente como o app foi desenhado.
 ```bash
 ./gradlew test                                   # lógica pura (conversor, CRX, patterns)
 ./gradlew assembleUnstable                       # APK universal + por ABI (o build do CI)
-./gradlew :app:testUnstableUnitTest              # só os testes, como o CI roda
+./gradlew :app:testDebugUnitTest               # só os testes, como o CI roda
+# (AGP 9 só cria tarefas de teste unitário para o tested build type — por isso Debug)
 ./gradlew apks                                   # lista os APKs gerados
 ```
 

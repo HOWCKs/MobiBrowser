@@ -48,7 +48,9 @@ jobs:
       - name: Lógica pura (conversor de manifest, parser de CRX)
         run: |
           set -o pipefail
-          ./gradlew --no-daemon --console=plain testUnstableUnitTest --stacktrace \
+          # AGP 9 cria componentes de teste unitário só para o tested build type (debug),
+          # então `testUnstableUnitTest` não existe mais — o que importa é o :app:test*.
+          ./gradlew --no-daemon --console=plain :app:testDebugUnitTest --stacktrace \
             2>&1 | tee /tmp/gradle-test.log
 
       - name: Compilar APKs (universal + por ABI)
