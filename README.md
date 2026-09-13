@@ -29,6 +29,20 @@ O motor é **GeckoView** (o mesmo motor do Firefox) — não é WebView nem fork
 Isso dá um runtime real de WebExtensions: content scripts, CSS injetado, `storage`,
 `declarativeNetRequest`, badges, popups.
 
+### Canal do motor (importante)
+
+O app roda sobre o **GeckoView do canal nightly** (`geckoviewChannel = "nightly"` em
+`gradle/libs.versions.toml`). Motivo: no canal de release o motor **recusa add-on sem
+assinatura da Mozilla**, e um pacote convertido da Chrome Web Store nunca tem essa
+assinatura — sem isso, o diferencial do app não existiria. No nightly o MobiBrowser escreve
+um YAML de configuração do GeckoView (`GeckoEngine.debugConfigPath`) com
+`xpinstall.signatures.required=false`, e o pacote convertido instala no runtime de verdade.
+
+O preço é o esperado: o motor muda a cada dia (a versão é dinâmica, `158.+`), pode ter
+regressão de estabilidade e **não** serve para navegação sensível. Para voltar ao motor
+estável, troque `geckoviewChannel` para `release` — o app continua funcionando, só que as
+extensões não assinadas passam a rodar pelo modo de compatibilidade (nível 3).
+
 Um pacote do Chrome Web Store não roda cru: o app baixa o `.crx`, remove o envelope do
 Chrome, **converte o `manifest.json`** (MV2 → MV3, `browser_action` → `action`,
 `host_permissions`, `service_worker` → página de eventos, `content_security_policy`,
@@ -40,7 +54,7 @@ Existem três níveis, e eles são visíveis na tela de extensões:
 | Nível | O que roda | Como |
 |---|---|---|
 | **Nativo** | Extensão completa no runtime do motor | Pacote assinado pela Mozilla (`.xpi` da AMO ou já convertido/assinado) instalado via `WebExtensionController.install()` |
-| **Convertida** | Extensão do Chrome Web Store convertida no aparelho | Instalada com `installBuiltIn()` (recursos do app). O GeckoView ainda pode recusar por assinatura — o app detecta `ERROR_SIGNEDSTATE_REQUIRED` e cai para o nível 3 |
+| **Convertida** | Extensão do Chrome Web Store, convertida e instalada no runtime | `WebExtensionController.install("file://…xpi")` com a verificação de assinatura desligada pelo canal nightly; se o motor recusar, o app detecta `ERROR_SIGNEDSTATE_REQUIRED` e cai para o nível 3 |
 | **Modo compatibilidade (MobiBridge)** | Content scripts, CSS injetado, regras de bloqueio, popups simples | A extensão-ponte embutida (`assets/extensions/mobibridge`) lê o pacote convertido e injeta nas páginas; APIs de background do Chrome não existem |
 
 **O que isso significa na prática:** bloqueadores de anúncio/conteúdo, gestores de estilo,
@@ -137,9 +151,10 @@ composables puros e o custo de trocar de motor fica confinado em `core/engine/`.
 
 ## Desenvolvimento
 
-O repositório é compilado **pelo GitHub Actions** (JDK 17 + AGP 8.13.2 + Gradle 8.14.3 +
-Android SDK *build tools* 36); a mesma sequência roda local. `compileSdk` é 36 porque as
-bibliotecas AndroidX atuais recusam compilar contra 35; `targetSdk` continua 35.
+O repositório é compilado **pelo GitHub Actions** (JDK 17 + AGP 9.3.2 + Gradle 9.7.1 +
+Kotlin 2.4.20 + Compose BOM 2026.09.00); a mesma sequência roda local. `compileSdk` é 37 e
+`targetSdk` continua 35: o Material 3 atual exige compilar contra 37, e manter o alvo em 35
+deixa o comportamento de barras/gestos exatamente como o app foi desenhado.
 
 ```bash
 ./gradlew test                                   # lógica pura (conversor, CRX, patterns)
@@ -156,10 +171,11 @@ O workflow roda os testes antes de `assembleUnstable`: se a conversão de manife
 artefato nem é publicado. O `nightly.yml` abre/repõe um *GitHub Release* marcado
 `prerelease` + `instável` com os APKs anexados.
 
-Requisitos de versão: `minSdk 26`, `targetSdk 35`, `compileSdk 36`,
-GeckoView fixado em `155.0.20260903215306` (canal *release*, assinado pela Mozilla).
-Mudar o `GECKOVIEW_VERSION` em `gradle/libs.versions.toml` muda o runtime de extensões
-inteiro — por isso está travado e não em `[0, +)`.
+Requisitos de versão: `minSdk 26` (se o `checkAarMetadata` reclamar do nightly, o número
+sobe para o mínimo do motor — é decisão de produto, não de gosto), `targetSdk 35`,
+`compileSdk 37`, `geckoviewChannel = "nightly"` com versão `158.+`.
+Mudar o canal/versão em `gradle/libs.versions.toml` muda o runtime de extensões inteiro:
+por isso o release fica pinado (`155.0.20260903215306`) e só o nightly é dinâmico.
 
 ### Assinatura
 
@@ -179,9 +195,9 @@ keyPassword=…
 
 ## Limitações conhecidas
 
-- Nível 1 (nativo, completo) só é garantido para pacote assinado pela Mozilla. Sem isso, a
-  extensão rejeitada cai para o modo compatibilidade — aceitável ou não é decisão do usuário,
-  e o cartão da extensão diz em qual nível ela está.
+- O suporte a extensão não assinada depende do canal nightly do motor. Num build com
+  `geckoviewChannel = "release"`, a extensão rejeitada cai para o modo compatibilidade — e o
+  cartão dela diz em qual nível está.
 - `GeckoRuntime.setRuntimeDelayedInitializationEnabled` não existe na API pública do release
   155: o runtime é criado no `Application`, o que é o comportamento padrão do GeckoView.
 - Persistir abas na rotação usa o estado do `TabController` (o motor continua vivo no
