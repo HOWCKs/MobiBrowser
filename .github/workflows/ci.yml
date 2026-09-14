@@ -22,7 +22,9 @@ concurrency:
   cancel-in-progress: true
 
 permissions:
-  contents: read
+  # write é para o passo que move a tag `nightly` e publica a release de
+  # pré-lançamento que o app consulta em Configurações → Sobre.
+  contents: write
 
 jobs:
   apk:
@@ -243,3 +245,48 @@ jobs:
           # Os .apk já são ZIPs comprimidos; nivel 1 evita queimar minuto do runner.
           compression-level: 1
           retention-days: 7
+
+      # Este é o ponto do loop de feedback: cada push verde renova a release `nightly`, e o
+      # MobiBrowser oferece esse build em Configurações → Sobre → Verificar atualização.
+      # Por que não deixar só para o nightly.yml: o GitHub só dispara schedule e
+      # workflow_dispatch a partir de arquivos que existem na branch padrão — enquanto o
+      # trabalho estiver em outra branch, o cron é enfeite. Publicar daqui não recompila nada:
+      # reaproveita os APKs que este job acabou de produzir.
+      - name: Renovar o canal de atualização (release nightly)
+        if: success() && github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          SHA_SHORT="$(git rev-parse --short HEAD)"
+          DATE="$(date -u +%Y-%m-%d)"
+          (cd dist/apks && sha256sum *.apk > SHA256SUMS.txt)
+          {
+            echo "Build automático do CI — **artefato instável**: não use para senhas ou banco."
+            echo ""
+            echo "No aparelho, instale o APK da sua ABI (app-arm64-v8a-unstable.apk é o mais"
+            echo "comum nos celulares atuais). Se o MobiBrowser já estiver instalado, a atualização"
+            echo "também acontece por dentro dele: Configurações, Sobre, Verificar atualização."
+            echo ""
+            echo "### O que mudou"
+            git log -15 --pretty=format:'- %h %s' || true
+            echo ""
+          } > RELEASE_NOTES.md
+          # O app compara o sha do TÍTULO com BuildConfig.GIT_SHA, então mover a tag é cosmético
+          # para o verificador; se o push da tag falhar (proteção de branch, por exemplo), o
+          # release continua correto e o aviso abaixo explica o que não aconteceu.
+          if ! git tag -f nightly "$GITHUB_SHA" >/dev/null 2>&1 || \
+             ! git push -f origin refs/tags/nightly >/dev/null 2>&1; then
+            echo "::warning::não consegui mover a tag nightly; a release foi atualizada do mesmo jeito"
+          fi
+          TITLE="MobiBrowser nightly $DATE ($SHA_SHORT)"
+          if gh release view nightly >/dev/null 2>&1; then
+            gh release edit nightly --title "$TITLE" --notes-file RELEASE_NOTES.md --prerelease
+            gh release upload nightly dist/apks/*.apk dist/apks/SHA256SUMS.txt --clobber
+          else
+            gh release create nightly dist/apks/*.apk dist/apks/SHA256SUMS.txt \
+              --title "$TITLE" --notes-file RELEASE_NOTES.md --prerelease --target "$GITHUB_SHA"
+          fi
+          gh release view nightly --json tagName,name,assets \
+            --jq '"canal: " + .name + " · " + (.assets | length | tostring) + " arquivos"' \
+            >> "$GITHUB_STEP_SUMMARY"
