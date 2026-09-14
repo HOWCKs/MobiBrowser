@@ -284,6 +284,10 @@ fun BrowserScreen(
                             AndroidView(
                                 factory = { ctx -> GeckoView(ctx) },
                                 update = { it.setSession(ui.session) },
+                                // Compose destrói o AndroidView ao sair da composição. Sem
+                                // desanexar aqui, a sessão da popup ficaria presa a uma view
+                                // morta — e o GeckoView não é recurso de UI, é do motor.
+                                onRelease = { view -> view.setSession(null) },
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .heightIn(min = 220.dp, max = 480.dp),
@@ -339,6 +343,10 @@ private fun EngineSurface(tab: BrowserTab, modifier: Modifier = Modifier) {
             }
         },
         update = { view -> view.setSession(tab.session) },
+        // Mesma razão da popup: EngineSurface sai da composição quando as barras animam ou
+        // quando a aba troca; a sessão, essa sim, continua viva no motor. Desanexar na liberação
+        // evita o estado "sessão anexada a uma view que já foi descartada".
+        onRelease = { view -> view.setSession(null) },
         modifier = modifier.fillMaxSize(),
     )
 }
