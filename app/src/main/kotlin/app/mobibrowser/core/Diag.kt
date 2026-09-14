@@ -151,16 +151,21 @@ object Diag {
         runCatching { exitsFile(context).writeText(text) }
     }
 
-    // O nome deste getter mudou entre as versões (getTraceInputStream até o 13, traceFile como
-    // fonte única depois), e errar aqui custaria a única linha que explica um SIGSEGV. Então:
-    // arquivo primeiro, stream por reflexão como rede de segurança, e os dois fora do caminho
-    // crítico — se nada funcionar, o restante do relatório continua de pé.
+    // Os dois getters de trace mudaram de nome/disponibilidade entre as versões da plataforma
+    // (getTraceInputStream até o Android 13, getTraceFile como fonte depois), e nenhum dos dois
+    // está no android.jar com que compilei. Um SIGSEGV sem tombstone é um número sem causa, e
+    // perder o trace é o pior dano possível aqui — então nenhum nome entra no código compilado:
+    // procuro os dois por reflexão, e se a OEM mexer em algum, o resto do relatório fica de pé.
     private fun readTrace(info: ApplicationExitInfo): String {
-        var raw = runCatching { info.traceFile?.readText() }.getOrNull().orEmpty()
-        if (raw.isBlank()) {
+        var raw = ""
+        for (getter in listOf("getTraceInputStream", "getTraceFile")) {
+            if (raw.isNotBlank()) break
             raw = runCatching {
-                val open = ApplicationExitInfo::class.java.getMethod("getTraceInputStream")
-                (open.invoke(info) as? java.io.InputStream)?.use { it.readBytes().decodeToString() }.orEmpty()
+                when (val value = ApplicationExitInfo::class.java.getMethod(getter).invoke(info)) {
+                    is java.io.InputStream -> value.use { it.readBytes().decodeToString() }
+                    is java.io.File -> if (value.canRead()) value.readText() else ""
+                    else -> ""
+                }
             }.getOrNull().orEmpty()
         }
         // O começo do tombstone traz o sinal e a mensagem de abort; o fim traz as pilhas. Mostro
@@ -180,6 +185,27 @@ object Diag {
             label?.takeIf { it.isNotBlank() && !it.equals("UNKNOWN", true) } ?: "submotivo $code"
         }
     }.getOrDefault("")
+
+    // Os códigos são os da própria plataforma (ApplicationExitInfo.REASON_* no AOSP) e cada um
+    // vira uma frase que diz o que aconteceu, não só o nome técnico.
+    private fun reasonName(reason: Int): String = when (reason) {
+        ApplicationExitInfo.REASON_EXIT_SELF -> "saída pedida pelo próprio app"
+        ApplicationExitInfo.REASON_SIGNALED -> "morto por sinal (nativo; abort ou kill)"
+        ApplicationExitInfo.REASON_LOW_MEMORY -> "baixa memória: o sistema escolheu este processo"
+        ApplicationExitInfo.REASON_CRASH -> "exceção Java não tratada"
+        ApplicationExitInfo.REASON_CRASH_NATIVE -> "crash nativo (pilha em código C/C++)"
+        ApplicationExitInfo.REASON_ANR -> "ANR (app não respondeu)"
+        ApplicationExitInfo.REASON_INITIALIZATION_FAILURE -> "falha de inicialização"
+        ApplicationExitInfo.REASON_PERMISSION_CHANGE -> "mudança de permissão"
+        ApplicationExitInfo.REASON_EXCESSIVE_RESOURCE_USAGE -> "uso excessivo de recurso"
+        ApplicationExitInfo.REASON_USER_REQUESTED -> "pedido do usuário (forçar parada / limpar)"
+        ApplicationExitInfo.REASON_USER_STOPPED -> "parado pelo usuário"
+        ApplicationExitInfo.REASON_DEPENDENCY_DIED -> "processo de que dependíamos morreu"
+        ApplicationExitInfo.REASON_FREEZER -> "congelado e encerrado pelo sistema"
+        ApplicationExitInfo.REASON_PACKAGE_STATE_CHANGE -> "mudança de estado do pacote"
+        ApplicationExitInfo.REASON_PACKAGE_UPDATED -> "pacote atualizado"
+        else -> "motivo ${'$'}reason"
+    }
 
     private fun importanceName(importance: Int): String = when (importance) {
         ActivityManager.RunningAppProcessInfo.IMPORTANCE_CACHED -> "cacheado em segundo plano"
@@ -207,7 +233,7 @@ object Diag {
                 FileOutputStream(file, true).use { raw ->
                     val out = raw.writer()
                     BufferedReader(InputStreamReader(process.inputStream)).use { reader ->
-                        out.write("──── logcat aberto ${stamp.format(Date())} · pid ${Process.myPid()} ────\n")
+                        out.write("──── logcat aberto ${stamp.format(Date())} · pid ${android.os.Process.myPid()} ────\n")
                         out.flush()
                         var bytes = file.length()
                         while (running) {
