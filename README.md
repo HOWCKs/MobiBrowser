@@ -13,7 +13,9 @@ aparelho — junto com os recursos que se esperam de um navegador moderno.
 ## Onde baixar o APK
 
 1. Aba **Actions** → workflow **CI — APK instável** → último run concluído.
-2. Em *Artifacts*, baixe `mobibrowser-apk-<sha>` (APK universal + por ABI) **ou** use a **GitHub Release `nightly`** marcada como
+2. Em *Artifacts*, baixe **`mobibrowser-apk-arm64-<sha>`** (o split de `arm64-v8a`, ~120 MB — é o
+   de quase todo aparelho desde 2018). `mobibrowser-apk-<sha>` tem os outros ABIs, e a
+   **GitHub Release `nightly`** marcada como
    pré-lançamento, criada pelo build noturno (com `SHA256SUMS.txt`).
 3. No aparelho: instale o APK (`adb install mobibrowser-universal-debug.apk` ou aceite o
    aviso de fonte desconhecida). Assinatura: *debug* — veja [Assinatura](#assinatura).
