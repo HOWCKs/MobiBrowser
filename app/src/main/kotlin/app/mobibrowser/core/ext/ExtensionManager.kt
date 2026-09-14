@@ -21,6 +21,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeoutOrNull
 import org.json.JSONArray
 import org.json.JSONObject
@@ -240,7 +241,7 @@ class ExtensionManager(
             name = meta?.name,
             description = meta?.description,
             icon = runCatching {
-                withTimeoutOrNull(5_000) { meta?.icon?.getBitmap(64)?.awaitResult() }
+                runBlocking { withTimeoutOrNull(5_000) { meta?.icon?.getBitmap(64)?.awaitResult() } }
             }.getOrNull(),
             permissions = meta?.requiredPermissions?.toList().orEmpty(),
             origins = meta?.requiredOrigins?.toList().orEmpty(),
@@ -409,7 +410,7 @@ class ExtensionManager(
                         mode = ExtensionRegistry.Mode.BRIDGE,
                         dnrRules = dnrRules,
                         warnings = converted.report.warnings +
-                            if (scripts.isEmpty()) {
+                            if (scripts == 0) {
                                 listOf(
                                     "Este pacote não expõe content scripts/estilos — em modo compatibilidade " +
                                         "não há o que executar.",

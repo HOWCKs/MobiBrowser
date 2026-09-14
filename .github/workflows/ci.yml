@@ -75,6 +75,45 @@ jobs:
           if-no-files-found: ignore
           retention-days: 14
 
+      # Log bruto + superfície real de API do AAR do motor, num artefato só para diagnóstico:
+      # anotação do GitHub tem teto (50 por check run) e aqui não há limite. Lê-se com
+      #   gh run download <run> -n mobibrowser-diagnostico-<sha> -d /tmp/diag
+      - name: Juntar diagnóstico (log bruto + javap do GeckoView)
+        if: always()
+        run: |
+          mkdir -p app/build/reports /tmp/gv
+          cp /tmp/gradle-test.log app/build/reports/gradle-test.log 2>/dev/null || true
+          cp /tmp/gradle-apk.log app/build/reports/gradle-apk.log 2>/dev/null || true
+          AAR=$(find ~/.gradle/caches/modules-2/files-2.1/org.mozilla.geckoview -name '*.aar' 2>/dev/null | head -1)
+          {
+            echo "# GeckoView: ${AAR:-nenhum AAR resolvido}"
+            if [ -n "$AAR" ]; then
+              unzip -o -q "$AAR" classes.jar -d /tmp/gv
+              for c in GeckoRuntime GeckoRuntimeSettings GeckoSession WebExtension \
+                       WebExtensionController StorageController GeckoResult GeckoView; do
+                names=$(unzip -Z1 /tmp/gv/classes.jar "org/mozilla/geckoview/${c}.class" \
+                        "org/mozilla/geckoview/${c}\$*.class" 2>/dev/null \
+                        | sed 's#^org/mozilla/geckoview/##; s#\.class$##')
+                for n in $names; do
+                  echo
+                  echo "===== org.mozilla.geckoview.$n ====="
+                  javap -protected -cp /tmp/gv/classes.jar "org.mozilla.geckoview.$n" 2>&1
+                done
+              done
+            fi
+          } > app/build/reports/geckoview-api.txt
+          wc -l app/build/reports/geckoview-api.txt
+
+      - name: Publicar diagnóstico do build
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mobibrowser-diagnostico-${{ github.sha }}
+          path: app/build/reports/
+          if-no-files-found: ignore
+          compression-level: 9
+          retention-days: 7
+
       - name: Resumo do build
         if: always()
         run: |

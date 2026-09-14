@@ -27,8 +27,12 @@ import os
 import re
 import sys
 
-TS = re.compile(r"^\d{4}-\d\d-\d\dT[\d:.]+Z\s?")
-KOTLIN_ERROR = re.compile(r"^e:\s+file://(?P<path>[^\s:]+):(?P<line>\d+):(?P<col>\d+):?\s*(?P<msg>.*)$")
+# O Actions prefixa CADA linha do log com "2026-09-13T23:25:12.345+0000 [ERROR]
+# [system.err] " — sem tirar isso, o extrator não acha nenhum erro e a anotação fica
+# vazia (foi exatamente assim que dois ciclos de CI pareceram "sem causa").
+TS = re.compile(r"^\d{4}-\d\d-\d\dT[\d:.]+(?:Z|[+-]\d{2}:?\d{2})?\s+")
+LOG_TAG = re.compile(r"^\[[A-Za-z.][^\]]*\]\s*")
+KOTLIN_ERROR = re.compile(r"^e:\s+(?:file://)?(?P<path>/[^\s:]+):(?P<line>\d+):(?P<col>\d+):?\s*(?P<msg>.*)$")
 KOTLIN_ERROR_NOPOS = re.compile(r"^e:\s+file://(?P<path>[^\s:]+):\s*(?P<msg>.+)$")
 JAVAC_ERROR = re.compile(r"^(?P<path>[\w./-]+\.(?:java|kt)):(?P<line>\d+):\s*error:\s*(?P<msg>.+)$")
 TASK_FAILED = re.compile(r"^> Task (?P<task>[^\s]+) FAILED")
@@ -74,6 +78,16 @@ def relative(path: str, root: str) -> str:
     return path[idx:] if idx >= 0 else path
 
 
+def clean(line: str) -> str:
+    """Remove o carimbo de data e as etiquetas [LEVEL]/[logger] do Actions."""
+    prev = None
+    while prev != line:
+        prev = line
+        line = TS.sub("", line, count=1).lstrip()
+        line = LOG_TAG.sub("", line, count=1).lstrip()
+    return line
+
+
 def collect_block(lines: list[str], start: int, limit: int = 60) -> str:
     """Junta as linhas de um bloco de diagnóstico até um marcador de fim."""
     out: list[str] = []
@@ -102,7 +116,7 @@ def main() -> int:
 
     for log in logs:
         with open(log, encoding="utf-8", errors="replace") as handle:
-            lines = [TS.sub("", raw).rstrip() for raw in handle.read().splitlines()]
+            lines = [clean(raw.rstrip()) for raw in handle.read().splitlines()]
 
         for index, line in enumerate(lines):
             match = KOTLIN_ERROR.match(line) or KOTLIN_ERROR_NOPOS.match(line)

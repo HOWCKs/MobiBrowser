@@ -2,22 +2,25 @@
 # Stack: Kotlin + Jetpack Compose (Material 3) + GeckoView. Sem React, sem JS bridge.
 # Decisão do plano (set/2026): toolchain novo — AGP 9 + Gradle 9.6/9.7 + API 37 — para usar
 # o Material 3 atual, e GeckoView no canal NIGHTLY para poder instalar extensão não assinada
-# (o release do motor recusa add-on sem assinatura da Mozilla, o que limitaria o pacote do
-# Chrome Web Store ao modo de compatibilidade).
+# (o release do motor recusa add-on sem assinatura da Mozilla; enquanto a camada não for
+# adaptada ao 158, o pacote do Chrome Web Store roda pelo modo de compatibilidade).
 agp = "9.3.2"
 kotlin = "2.4.20"
 composeBom = "2026.09.00"
 
 # Motor de navegação: GeckoView (runtime real de WebExtensions, declarativeNetRequest, popups).
 #
+# geckoviewChannel = "release"  ->  motor estável e congelado (versão pinada abaixo). É o
+#       padrão: a camada core/engine + core/ext fala a API pública do 155. Nesse canal o motor
+#       recusa add-on sem assinatura da Mozilla, então pacote convertido do Chrome Web Store
+#       roda pelo modo de compatibilidade (MobiBridge).
 # geckoviewChannel = "nightly"  ->  artifact omni nightly + `xpinstall.signatures.required`
-#       desligado por config do motor: é o único canal onde um pacote convertido do Chrome
-#       Web Store pode ser instalado sem assinatura da Mozilla. Há build novo por dia, por
-#       isso a versão é dinâmica (158.+ = o nightly mais recente do ciclo).
-# geckoviewChannel = "release"  ->  motor estável e congelado; extensões não assinadas são
-#       recusadas e o app usa o modo de compatibilidade (MobiBridge) para elas.
-# Trocar o canal é mudar ESTA linha; o buildConfigField MOBI_ALLOW_UNSIGNED_ADDONS acompanha.
-geckoviewChannel = "nightly"
+#       desligado por config do motor (GeckoEngine.debugConfigPath): é o único canal onde um
+#       pacote não assinado instala no runtime de verdade. ATENÇÃO: o 158 removeu
+#       WebExtension.Runtime (delegates passaram por um registro unificado) — trocar ESTA
+#       linha sem adaptar core/engine e core/ext quebra a compilação. Work item aberto.
+# O buildConfigField MOBI_ALLOW_UNSIGNED_ADDONS e o GECKOVIEW_CHANNEL acompanham a linha.
+geckoviewChannel = "release"
 geckoview = "158.+"
 geckoviewRelease = "155.0.20260903215306"
 

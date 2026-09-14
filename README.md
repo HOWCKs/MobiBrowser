@@ -31,17 +31,19 @@ Isso dá um runtime real de WebExtensions: content scripts, CSS injetado, `stora
 
 ### Canal do motor (importante)
 
-O app roda sobre o **GeckoView do canal nightly** (`geckoviewChannel = "nightly"` em
-`gradle/libs.versions.toml`, artifact `org.mozilla.geckoview:geckoview-nightly-omni`). Motivo: no canal de release o motor **recusa add-on sem
-assinatura da Mozilla**, e um pacote convertido da Chrome Web Store nunca tem essa
-assinatura — sem isso, o diferencial do app não existiria. No nightly o MobiBrowser escreve
-um YAML de configuração do GeckoView (`GeckoEngine.debugConfigPath`) com
-`xpinstall.signatures.required=false`, e o pacote convertido instala no runtime de verdade.
+O app roda sobre o **GeckoView do canal de release** (`geckoviewChannel = "release"` em
+`gradle/libs.versions.toml`, artifact `org.mozilla.geckoview:geckoview-omni`, versão pinada).
+Nesse canal o motor **recusa add-on sem assinatura da Mozilla**, então uma extensão convertida
+da Chrome Web Store não entra no runtime: ela é instalada no **modo de compatibilidade**
+(MobiBridge), que executa content scripts, estilos e regras de bloqueio do pacote real.
 
-O preço é o esperado: o motor muda a cada dia (a versão é dinâmica, `158.+`), pode ter
-regressão de estabilidade e **não** serve para navegação sensível. Para voltar ao motor
-estável, troque `geckoviewChannel` para `release` — o app continua funcionando, só que as
-extensões não assinadas passam a rodar pelo modo de compatibilidade (nível 3).
+Já existe o caminho para o nível nativo: com `geckoviewChannel = "nightly"` o MobiBrowser escreve
+um YAML de configuração do motor (`GeckoEngine.debugConfigPath`) com
+`xpinstall.signatures.required=false` e o pacote convertido instala de verdade. **Isso ainda não
+está habilitado** porque o GeckoView 158 removeu `WebExtension.Runtime` (os delegates passaram por
+um registro unificado) e a camada `core/engine` + `core/ext` foi escrita contra a API do 155 — o
+trabalho pendente é adaptar esses dois pacotes ao novo registro de delegates, não a configuração.
+O switch fica exposto em Configurações → Extensões para quando o adaptador existir.
 
 Um pacote do Chrome Web Store não roda cru: o app baixa o `.crx`, remove o envelope do
 Chrome, **converte o `manifest.json`** (MV2 → MV3, `browser_action` → `action`,
@@ -174,7 +176,9 @@ artefato nem é publicado. O `nightly.yml` abre/repõe um *GitHub Release* marca
 
 Requisitos de versão: `minSdk 26` (se o `checkAarMetadata` reclamar do nightly, o número
 sobe para o mínimo do motor — é decisão de produto, não de gosto), `targetSdk 35`,
-`compileSdk 37` + `compileSdkMinor 1`, `geckoviewChannel = "nightly"` com versão `158.+`.
+`compileSdk 37` + `compileSdkMinor 1`. O AAR do GeckoView
+155 exige compilar contra a API 37 (por isso o `compileSdkMinor`); com o canal nightly a
+exigência é a mesma, e a versão dinâmica `158.+` é o nightly do ciclo em curso.
 Mudar o canal/versão em `gradle/libs.versions.toml` muda o runtime de extensões inteiro:
 por isso o release fica pinado (`155.0.20260903215306`) e só o nightly é dinâmico.
 
