@@ -59,7 +59,10 @@ android {
         versionName = "0.1.0"
 
         // AGP 9 removeu resourceConfigurations: o filtro de idioma é androidResources.localeFilters.
-        androidResources { localeFilters += listOf("pt-BR", "en") }
+        // Só "en" mesmo: o padrão (values/) já é português e não existe values-pt — listar
+        // "pt-BR" aqui quebrou o aapt2 ("invalid config 'pt-BR' for -c option."), porque
+        // qualificador de região em recurso Android é pt-rBR/pt-BR só no b+pt+BR canônico.
+        androidResources { localeFilters += listOf("en") }
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 

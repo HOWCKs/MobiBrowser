@@ -45,6 +45,26 @@ jobs:
         with:
           cache-read-only: ${{ github.ref != 'refs/heads/main' }}
 
+      # O compilador insiste em não ver data/BrowserDb.kt e core/ext/MatchPattern.kt (todos os
+      # imports deles dão "Unresolved reference" sem erro nos próprios arquivos). Publico o
+      # estado do checkout como anotação para saber se o problema é o checkout ou o source set.
+      - name: Conferir o checkout (diagnóstico)
+        run: |
+          D=app/src/main/kotlin/app/mobibrowser
+          {
+            echo "ls-tree BrowserDb: $(git ls-tree HEAD -- $D/data/BrowserDb.kt)"
+            echo "ls-tree MatchPattern: $(git ls-tree HEAD -- $D/core/ext/MatchPattern.kt)"
+            echo "worktree: $(ls -la $D/data/BrowserDb.kt $D/core/ext/MatchPattern.kt 2>&1 | tr -s ' ' | tr '\n' ';')"
+            echo "md5: $(md5sum $D/data/BrowserDb.kt $D/core/ext/MatchPattern.kt 2>&1 | awk '{printf "%s ", $1}')"
+            echo "arquivos kt no módulo: $(find app/src -name '*.kt' | wc -l)"
+            echo "source set main: $(find app/src/main/kotlin -name '*.kt' | sort | tr '\n' ' ' | cut -c1-900)"
+          } | tee /tmp/checkout-check.txt
+          python3 - <<'PY'
+          import io
+          t = io.open('/tmp/checkout-check.txt', encoding='utf-8', errors='replace').read()
+          print('::warning::' + t.replace('%', '%25').replace(':', '%3A').replace('|', '%7C').replace('\n', '%0A')[:1400])
+          PY
+
       - name: Lógica pura (conversor de manifest, parser de CRX)
         run: |
           set -o pipefail
