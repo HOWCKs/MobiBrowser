@@ -64,7 +64,7 @@
     <string name="extensions_origins_title">Acesso aos sites</string>
     <string name="extensions_source_native">Motor (GeckoView, executada como extensão real)</string>
     <string name="extensions_source_bridge">Compatibilidade (content scripts via MobiBridge)</string>
-    <string name="extensions_bridge_warning">Este build usa o GeckoView do canal nightly, que aceita o pacote convertido mesmo sem assinatura da Mozilla. Quando o motor recusa mesmo assim (ou se o canal for trocado para release), a extensão roda pela ponte de compatibilidade: content scripts, estilos e regras de bloqueio funcionam; APIs privilegiadas (webRequest bloqueante, debugger, tabCapture) não estão disponíveis.</string>
+    <string name="extensions_bridge_warning">O canal estável do GeckoView executa apenas extensões assinadas pela Mozilla, e o pacote convertido da loja não tem essa assinatura. Ele roda pela ponte de compatibilidade: content scripts, estilos e regras de bloqueio funcionam; popup, badge e as APIs privilegiadas (webRequest bloqueante, debugger, tabCapture) não. Isso muda quando a camada de extensões for adaptada aos delegates novos do canal nightly.</string>
     <string name="extensions_update_available">Atualização disponível</string>
     <string name="extensions_check_updates">Verificar atualizações</string>
     <string name="extensions_blocked_count">%1$d requisições bloqueadas nesta página</string>
@@ -118,8 +118,8 @@
 
     <!-- Primeiro uso -->
     <string name="first_run_title">Navegador com extensões de verdade</string>
-    <string name="first_run_body">O MobiBrowser usa o motor do Firefox (GeckoView, canal nightly) e instala extensões no formato WebExtensions: da Chrome Web Store, convertendo o manifest no aparelho, ou de arquivos .crx/.xpi que você já tem. Também roda user scripts e CSS por sua conta.</string>
-    <string name="first_run_body_2">É um build instável de propósito: motor do canal nightly, APK assinado com chave de debug. Use para testar e relatar problemas, e evite acessar contas sensíveis por aqui.</string>
+    <string name="first_run_body">O MobiBrowser usa o motor do Firefox (GeckoView, versão estável pinada no APK) e instala extensões no formato WebExtensions: da Chrome Web Store, convertendo o manifest no aparelho, ou de arquivos .crx/.xpi que você já tem. Também roda user scripts e CSS por sua conta.</string>
+    <string name="first_run_body_2">É um build instável de propósito: assinado com chave de debug e distribuído fora da loja. Use para testar e relatar problemas, e evite acessar contas sensíveis por aqui.</string>
     <string name="first_run_cta">Começar</string>
 
     <string name="ok">OK</string>

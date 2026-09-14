@@ -1,0 +1,478 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>MobiBrowser — prévia de interface (sem compilar)</title>
+<style>
+/* Tokens copiados de ui/theme/MobiTheme.kt — se o tema mudar, mudar aqui. */
+:root{
+  --primary:#B4C5FF; --on-primary:#0A2678; --primary-c:#223DA0; --on-primary-c:#DDE4FF;
+  --secondary:#6ED9C9; --tertiary:#CFBBFF;
+  --bg:#12131A; --surface:#12131A; --on-surface:#E3E1E9;
+  --surface-c:#1B1D26; --surface-h:#23252F; --surface-v:#45464F;
+  --on-v:#C7C5CF; --outline:#91909A; --outline-v:#45464F;
+  --error:#FFB4AB; --error-c:#93000A;
+  --r-xs:8px; --r-sm:14px; --r-md:22px; --r-lg:30px; --r-xl:40px;
+  --spring:cubic-bezier(.2,1.25,.35,1);
+  --spring-flat:cubic-bezier(.2,1,.35,1);
+}
+html.light{
+  --primary:#3B5BDB; --on-primary:#fff; --primary-c:#DDE4FF; --on-primary-c:#00144C;
+  --secondary:#12A594; --tertiary:#8A5BFF;
+  --bg:#FBF8FF; --surface:#FBF8FF; --on-surface:#1A1B22;
+  --surface-c:#F1EEF8; --surface-h:#E8E5F2; --surface-v:#E3E1EC;
+  --on-v:#46464F; --outline:#77767F; --outline-v:#C7C5CF;
+  --error:#BA1A1A; --error-c:#FFDAD6;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;background:#000;font:16px/1.45 system-ui,"Roboto","Segoe UI",sans-serif;color:var(--on-surface);
+  display:flex;flex-wrap:wrap;gap:26px;align-items:flex-start;justify-content:center;padding:18px}
+h1,h2,h3{margin:0;font-weight:600}
+.note{max-width:340px;padding:14px 16px;background:#111;border:1px solid #262626;border-radius:16px;color:#b9b9c4;font-size:13px}
+.note b{color:#e3e1e9}
+.note code{background:#1d1d24;padding:1px 5px;border-radius:6px;font-size:12px}
+.panel{max-width:340px;background:#111;border:1px solid #262626;border-radius:16px;padding:14px 16px}
+.panel h2{font-size:13px;letter-spacing:.02em;text-transform:uppercase;color:#8b8b96;margin-bottom:10px}
+.panel .row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+.btn{border:1px solid #33333d;background:#191921;color:#dcdce4;border-radius:999px;padding:8px 13px;font-size:13px;font-weight:600;cursor:pointer;transition:transform .18s var(--spring),background .2s}
+.btn:active{transform:scale(.94)}
+.btn[aria-pressed=true],.btn.on{background:var(--primary-c);border-color:var(--primary);color:var(--on-primary-c)}
+.small{font-size:12px;color:#8b8b96;margin-top:6px}
+
+/* ---------- aparelho ---------- */
+.phone{width:390px;height:844px;background:var(--bg);border-radius:44px;border:10px solid #0b0b0d;
+  box-shadow:0 30px 80px #0009,0 0 0 1px #2a2a33 inset;overflow:hidden;position:relative;display:flex;flex-direction:column}
+.status{height:30px;display:flex;align-items:center;justify-content:space-between;padding:0 20px;font-size:12px;color:var(--on-v);flex:none}
+.chrome{display:flex;flex-direction:column;height:100%;position:relative;overflow:hidden}
+
+/* topbar */
+.topbar{display:flex;align-items:center;gap:8px;padding:6px 10px 8px;flex:none}
+.iconbtn{width:42px;height:42px;border-radius:999px;display:grid;place-items:center;border:0;background:transparent;color:var(--on-surface);cursor:pointer;transition:transform .16s var(--spring),background .2s;flex:none}
+.iconbtn:active{transform:scale(.9);background:var(--surface-h)}
+.iconbtn svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+.addr{flex:1;min-width:0;height:44px;border-radius:var(--r-md);background:var(--surface-c);display:flex;align-items:center;gap:8px;padding:0 12px;font-size:15px;color:var(--on-v);cursor:text;transition:border-radius .25s var(--spring),background .2s}
+.addr.editing{background:var(--surface-h);border-radius:var(--r-sm);color:var(--on-surface)}
+.addr .txt{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.addr .lock{width:16px;height:16px;flex:none}
+.badge{font-size:11px;font-weight:700;background:var(--secondary);color:#00372f;border-radius:6px;padding:1px 5px}
+.progress{height:2px;background:var(--primary);width:0;transition:width 1.2s linear;flex:none}
+
+/* content */
+.stage{flex:1;min-height:0;position:relative;overflow:hidden}
+.screen{position:absolute;inset:0;overflow-y:auto;padding:8px 0 96px;scrollbar-width:thin;display:none;overscroll-behavior:contain}
+.screen.active{display:block}
+.empty{height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;text-align:center;padding:0 34px}
+.empty .puzzle{width:46px;height:46px;fill:var(--primary)}
+.empty h3{font-size:19px;font-weight:600}
+.empty p{margin:0;color:var(--on-v);font-size:14.5px}
+.empty .links{display:flex;gap:18px;margin-top:16px}
+.linkbtn{display:flex;align-items:center;gap:7px;color:var(--primary);font-weight:600;font-size:14.5px;background:none;border:0;cursor:pointer;padding:8px 4px}
+.linkbtn svg{width:19px;height:19px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round}
+
+/* bottombar */
+.bottombar{flex:none;display:flex;align-items:center;gap:6px;padding:6px 12px 18px;background:var(--surface-c);
+  border-top:1px solid var(--outline-v);transition:transform .32s var(--spring-flat)}
+.bottombar.hidden{transform:translateY(100%);position:absolute;left:0;right:0;bottom:0}
+.bottombar .grow{flex:1}
+.count{min-width:40px;height:38px;padding:0 12px;border-radius:var(--r-sm);display:grid;place-items:center;background:transparent;border:0;color:var(--on-surface);font-size:14px;font-weight:700;cursor:pointer}
+.count:active{background:var(--surface-h)}
+
+/* sheets */
+.scrim{position:absolute;inset:0;background:#0008;opacity:0;pointer-events:none;transition:opacity .28s}
+.scrim.open{opacity:1;pointer-events:auto}
+.sheet{position:absolute;left:0;right:0;bottom:0;background:var(--surface-c);border-radius:var(--r-xl) var(--r-xl) 0 0;
+  transform:translateY(101%);transition:transform .38s var(--spring);max-height:86%;display:flex;flex-direction:column}
+.sheet.open{transform:translateY(0)}
+.grab{width:34px;height:4px;border-radius:4px;background:var(--on-v);opacity:.5;margin:12px auto 4px;flex:none}
+.sheet header{display:flex;align-items:center;padding:6px 20px 10px;gap:10px;flex:none}
+.sheet header h2{font-size:20px;font-weight:600;flex:1}
+.sheet .body{overflow-y:auto;padding:0 0 22px}
+.item{display:flex;align-items:center;gap:16px;padding:13px 20px;cursor:pointer;position:relative}
+.item:active{background:var(--surface-h)}
+.item svg{width:22px;height:22px;flex:none;stroke:currentColor;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round;color:var(--on-surface)}
+.item .lbl{flex:1;min-width:0;font-size:15.5px}
+.item .sub{display:block;font-size:12.5px;color:var(--on-v);margin-top:2px}
+.sep{height:1px;background:var(--outline-v);margin:8px 20px}
+
+/* controls inside sheets */
+.switch{width:46px;height:26px;border-radius:999px;background:var(--surface-v);position:relative;flex:none;transition:background .22s;cursor:pointer;border:2px solid var(--outline)}
+.switch i{position:absolute;top:3px;left:3px;width:16px;height:16px;border-radius:50%;background:var(--outline);transition:transform .28s var(--spring),width .2s,height .2s}
+.switch[aria-checked=true]{background:var(--primary);border-color:var(--primary)}
+.switch[aria-checked=true] i{transform:translateX(20px);width:18px;height:18px;top:2px;left:2px;background:var(--on-primary)}
+.seg{display:flex;gap:8px;padding:0 20px 12px}
+.seg button{flex:1;padding:10px 6px;border-radius:var(--r-sm);border:1px solid var(--outline-v);background:transparent;color:var(--on-surface);font-size:13.5px;font-weight:600;cursor:pointer;transition:background .2s,border-color .2s}
+.seg button.on{background:var(--primary-c);border-color:var(--primary);color:var(--on-primary-c)}
+.chips{display:flex;gap:8px;flex-wrap:wrap;padding:0 20px 12px}
+.chip{padding:7px 12px;border-radius:var(--r-xs);border:1px solid var(--outline-v);font-size:12.5px;color:var(--on-v)}
+.chip.on{border-color:var(--secondary);color:var(--secondary)}
+
+/* cards (abas, extensões) */
+.cards{display:flex;gap:12px;overflow-x:auto;padding:4px 20px 16px;scrollbar-width:none}
+.cards::-webkit-scrollbar{display:none}
+.tabcard{flex:none;width:172px;background:var(--surface);border-radius:var(--r-md);border:1px solid var(--outline-v);overflow:hidden;transition:transform .2s var(--spring),border-color .2s}
+.tabcard.sel{border-color:var(--primary);transform:translateY(-3px)}
+.tabcard .head{display:flex;align-items:center;gap:7px;padding:9px 10px;font-size:12.5px}
+.tabcard .fav{width:16px;height:16px;border-radius:4px;background:var(--secondary);display:grid;place-items:center;color:#00372f;font-size:10px;font-weight:800;flex:none}
+.tabcard .name{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tabcard .x{width:20px;height:20px;border-radius:50%;display:grid;place-items:center;color:var(--on-v);flex:none;cursor:pointer}
+.tabcard .thumb{height:196px;background:linear-gradient(160deg,var(--surface-h),var(--surface-v));display:grid;place-items:center;color:var(--on-v);font-size:13px}
+.fab{margin:2px 20px 14px;padding:13px 20px;border-radius:var(--r-lg);background:var(--primary-c);color:var(--on-primary-c);border:0;font-size:15px;font-weight:700;display:inline-flex;gap:9px;align-items:center;cursor:pointer;transition:transform .2s var(--spring)}
+.fab:active{transform:scale(.95)}
+.fab svg{width:19px;height:19px;stroke:currentColor;fill:none;stroke-width:2.2;stroke-linecap:round}
+.list{padding:2px 20px 8px;display:flex;flex-direction:column;gap:10px}
+.row-card{background:var(--surface);border:1px solid var(--outline-v);border-radius:var(--r-md);padding:13px 15px;display:flex;gap:13px;align-items:flex-start}
+.row-card .ic{width:36px;height:36px;border-radius:10px;background:var(--primary-c);color:var(--on-primary-c);display:grid;place-items:center;font-weight:800;font-size:15px;flex:none}
+.row-card .t{flex:1;min-width:0}
+.row-card .t b{display:block;font-size:15.5px;font-weight:600}
+.row-card .t span{display:block;font-size:12.5px;color:var(--on-v);margin-top:3px}
+.pill{font-size:11.5px;font-weight:700;padding:3px 8px;border-radius:999px;background:var(--surface-h);color:var(--on-v)}
+.pill.warn{background:var(--error-c);color:#ffdad6}
+.pill.ok{background:#005049;color:#a6f2e6}
+.textbtn{border:0;background:none;color:var(--primary);font-weight:700;font-size:14px;padding:9px 10px;border-radius:var(--r-xs);cursor:pointer}
+.textbtn:active{background:var(--surface-h)}
+.field{margin:2px 20px 12px;border:1px solid var(--outline-v);border-radius:var(--r-sm);padding:11px 13px;background:var(--surface)}
+.field label{display:block;font-size:11.5px;color:var(--primary);margin-bottom:4px;font-weight:700;letter-spacing:.02em}
+.field .v{font-size:14.5px}
+.field.code .v{font-family:ui-monospace,Menlo,monospace;font-size:12.5px;white-space:pre;color:var(--on-v)}
+.banner{margin:6px 20px 10px;padding:11px 13px;border-radius:var(--r-sm);background:var(--primary-c);color:var(--on-primary-c);font-size:13.5px;display:flex;gap:10px;align-items:center}
+.banner svg{width:20px;height:20px;flex:none;stroke:currentColor;fill:none;stroke-width:2}
+.section{padding:16px 20px 4px;font-size:13px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;color:var(--primary)}
+.info{display:flex;gap:14px;padding:9px 20px;font-size:14px}
+.info b{flex:0 0 40%;font-weight:600;color:var(--on-v)}
+.info span{flex:1;min-width:0;color:var(--on-surface);word-break:break-word}
+.findbar{position:absolute;top:56px;left:0;right:0;background:var(--surface-h);display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:0 0 var(--r-md) var(--r-md);transform:translateY(-110%);transition:transform .3s var(--spring);z-index:4}
+.findbar.open{transform:none}
+.findbar input{flex:1;min-width:0;background:var(--surface);border:0;border-radius:var(--r-xs);padding:9px 11px;color:var(--on-surface);font-size:14.5px}
+.findbar .n{font-size:12px;color:var(--on-v);min-width:54px;text-align:center}
+.dialog{position:absolute;inset:0;display:none;place-items:center;background:#000a;padding:22px;z-index:9}
+.dialog.open{display:grid}
+.dialog .box{background:var(--surface-c);border-radius:var(--r-lg);padding:20px;max-height:80%;display:flex;flex-direction:column;gap:12px}
+.dialog h3{font-size:19px;font-weight:600}
+.dialog pre{margin:0;overflow:auto;max-height:320px;background:var(--surface);border-radius:var(--r-xs);padding:11px;font-family:ui-monospace,Menlo,monospace;font-size:11px;line-height:1.5;color:var(--on-v);white-space:pre-wrap}
+.dialog .acts{display:flex;justify-content:flex-end;gap:6px}
+.snack{position:absolute;left:14px;right:14px;bottom:96px;background:#322f3b;color:#efeaf6;border-radius:var(--r-xs);padding:12px 15px;font-size:13.5px;opacity:0;transform:translateY(14px);transition:.3s var(--spring-flat);z-index:8}
+.snack.show{opacity:1;transform:none}
+.hint{font-size:12.5px;color:var(--on-v);padding:0 20px 10px}
+kbd{background:#1d1d24;border-radius:5px;padding:1px 5px;font-size:11px}
+</style>
+</head>
+<body>
+
+<div class="panel">
+  <h2>Prévia de interface</h2>
+  <div class="row" id="screens">
+    <button class="btn on" data-s="nav">Navegação</button>
+    <button class="btn" data-s="tabs">Abas</button>
+    <button class="btn" data-s="ext">Extensões</button>
+    <button class="btn" data-s="scripts">Scripts</button>
+    <button class="btn" data-s="set">Configurações</button>
+  </div>
+  <div class="row">
+    <button class="btn" id="t-theme">Tema claro</button>
+    <button class="btn" id="t-bars">Esconder barras</button>
+    <button class="btn" id="t-find">Buscar na página</button>
+    <button class="btn" id="t-menu">Menu da página</button>
+  </div>
+  <div class="row">
+    <button class="btn" id="t-update">Simular update disponível</button>
+    <button class="btn" id="t-crash">Simular aviso de crash</button>
+  </div>
+  <p class="small">Não é o app: é o layout, as cores, os textos e o movimento do código Compose renderizados em HTML para revisar no celular em 1 segundo, sem CI. Toques funcionam.</p>
+  <p class="small" id="drift">Se você mexer no <code>ui/</code> e esquecer disto aqui, a prévia desanda — o arquivo declara os tokens de onde copia.</p>
+</div>
+
+<div class="note">
+  <p><b>O que isto NÃO é.</b> Não há como rodar <code>@Preview</code> do Compose nem gradle no Code on the Go: falta JDK, Android SDK, layoutlib e <code>aapt2</code> (binários que não executam no Android). O APK continua nascendo só no GitHub Actions. O ganho aqui é outro: revisar hierarquia, textos, estados vazios e fluxo de toque <em>antes</em> de gastar o ciclo de compilação.</p>
+  <p><b>Como atualizar a prévia:</b> <code>git pull</code> e abrir este arquivo de novo. Ela mora no repositório em <code>tools/preview/index.html</code>.</p>
+</div>
+
+<!-- ============================ aparelho ============================ -->
+<div class="phone"><div class="chrome">
+  <div class="status"><span id="clock">12:27</span><span>5G &nbsp;·&nbsp; 61%</span></div>
+
+  <div class="topbar" id="topbar">
+    <button class="iconbtn" id="b-menu" title="Menu"><svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h11"/></svg></button>
+    <div class="addr" id="addr">
+      <svg class="lock" viewBox="0 0 24 24" fill="none" stroke="var(--secondary)" stroke-width="2"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 018 0v3"/></svg>
+      <span class="txt" id="addr-txt">mobi.link</span>
+    </div>
+    <button class="iconbtn" id="b-reload" title="Recarregar"><svg viewBox="0 0 24 24"><path d="M20 12a8 8 0 11-2.3-5.6M20 4v4h-4"/></svg></button>
+  </div>
+  <div class="progress" id="prog"></div>
+
+  <div class="findbar" id="findbar">
+    <input placeholder="Buscar na página" id="find-q">
+    <span class="n" id="find-n">3 de 12</span>
+    <button class="textbtn" data-find="prev">Anterior</button>
+    <button class="textbtn" data-find="next">Próximo</button>
+    <button class="textbtn" id="find-x">Fechar</button>
+  </div>
+
+  <div class="stage">
+
+    <!-- navegação -->
+    <section class="screen active" data-s="nav">
+      <div class="empty">
+        <svg class="puzzle" viewBox="0 0 24 24"><path d="M20.5 11H19V7a2 2 0 00-2-2h-4V3.5a2.5 2.5 0 00-5 0V5H4a2 2 0 00-2 2v3.5h1.5a2.5 2.5 0 010 5H2V19a2 2 0 002 2h3.5v-1.5a2.5 2.5 0 015 0V21H17a2 2 0 002-2v-4h1.5a2.5 2.5 0 000-5z"/></svg>
+        <h3>Navegador com extensões</h3>
+        <p>Instale uma extensão da Chrome Web Store ou um arquivo .crx/.xpi do seu aparelho.</p>
+        <div class="links">
+          <button class="linkbtn" data-act="newtab"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Nova aba</button>
+          <button class="linkbtn" data-act="installfile"><svg viewBox="0 0 24 24"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 19h16"/></svg>Instalar de arquivo (.crx/.xpi/.zip)</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- abas -->
+    <section class="screen" data-s="tabs">
+      <header style="display:flex;align-items:center;padding:8px 20px 12px">
+        <h2 style="font-size:21px;flex:1">Abas</h2>
+        <button class="textbtn">Fechar todas</button>
+      </header>
+      <div class="seg" id="seg-tabs">
+        <button class="on">✓ Normais</button><button>Anônimas</button>
+      </div>
+      <div class="cards" id="tabcards"></div>
+      <button class="fab" data-act="newtab"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Nova aba</button>
+      <p class="hint">A aba com contorno é a ativa. Antes do conserto, a restauração deixava <b>nenhuma</b> ativa: a tela caía neste vazio com abas vivas por trás.</p>
+    </section>
+
+    <!-- extensões -->
+    <section class="screen" data-s="ext">
+      <header style="display:flex;align-items:center;padding:8px 20px 10px"><h2 style="font-size:21px;flex:1">Extensões</h2></header>
+      <div class="banner">
+        <svg viewBox="0 0 24 24"><path d="M12 3l2.5 5.5L20 9l-4 4 1 6-5-2.7L7 19l1-6-4-4 5.5-.5z"/></svg>
+        <span>Extensão detectada nesta página — instalar</span>
+      </div>
+      <div class="list" id="extlist"></div>
+      <div class="field"><label>ID DA EXTENSÃO OU URL DA CHROME WEB STORE</label><div class="v">https://chromewebstore.google.com/detail/…</div></div>
+      <div style="display:flex;gap:8px;padding:0 20px 16px">
+        <button class="fab" style="margin:0;flex:1;justify-content:center">Instalar</button>
+        <button class="fab" style="margin:0;background:transparent;border:1px solid var(--outline-v);color:var(--primary)">Abrir a loja</button>
+      </div>
+      <p class="hint">Navegue pela loja dentro do MobiBrowser. Quando estiver na página de uma extensão, o MobiBrowser oferece instalá-la.</p>
+    </section>
+
+    <!-- scripts -->
+    <section class="screen" data-s="scripts">
+      <header style="display:flex;align-items:center;padding:8px 20px 10px"><h2 style="font-size:21px;flex:1">User scripts e estilos</h2></header>
+      <div class="list">
+        <div class="row-card"><div class="ic">JS</div><div class="t"><b>Esconder banners de cookie</b><span>*://*.exemplo.com/* · 4 páginas</span></div><div class="switch" role="switch" aria-checked="true"><i></i></div></div>
+        <div class="row-card"><div class="ic" style="background:var(--secondary);color:#00372f">CSS</div><div class="t"><b>Modo escuro forçado</b><span>&lt;all_urls&gt; · desativado</span></div><div class="switch" role="switch" aria-checked="false"><i></i></div></div>
+      </div>
+      <div class="field"><label>NOME</label><div class="v">Esconder banners de cookie</div></div>
+      <div class="field"><label>PADRÃO DE SITES (EX.: *://*.EXEMPLO.COM/*)</label><div class="v">*://*.exemplo.com/*</div></div>
+      <div class="field code"><label>CÓDIGO</label><div class="v">for (const el of document.querySelectorAll('[class*=cookie]'))
+  el.remove();</div></div>
+      <div style="display:flex;gap:8px;padding:0 20px 16px">
+        <button class="fab" style="margin:0;flex:1;justify-content:center">Salvar</button>
+        <button class="fab" style="margin:0;background:transparent;border:1px solid var(--outline-v);color:var(--error)">Excluir</button>
+      </div>
+      <p class="hint">Rodam em todas as páginas que baterem com o padrão, com um shim de chrome.* e GM_* básicos.</p>
+    </section>
+
+    <!-- configurações -->
+    <section class="screen" data-s="set">
+      <header style="display:flex;align-items:center;padding:8px 20px 6px">
+        <h2 style="font-size:21px;flex:1">Configurações</h2>
+        <button class="textbtn" data-act="close-settings">Fechar</button>
+      </header>
+
+      <div class="section">Aparência</div>
+      <div class="seg" id="seg-theme"><button>Seguir o sistema</button><button>Claro</button><button class="on">Escuro</button></div>
+      <div class="item"><div class="lbl">Cores do papel de parede<span class="sub">Material You sobrescreve a paleta do app</span></div><div class="switch" role="switch" aria-checked="true"><i></i></div></div>
+      <div class="item"><div class="lbl">Movimento expressivo (molas e gestos)</div><div class="switch" role="switch" aria-checked="true"><i></i></div></div>
+
+      <div class="section">Privacidade e bloqueio</div>
+      <div class="seg" id="seg-tp"><button>Padrão</button><button class="on">Rigorosa (por aba)</button><button>Desligada</button></div>
+      <div class="item"><div class="lbl">JavaScript</div><div class="switch" role="switch" aria-checked="true"><i></i></div></div>
+      <div class="item"><div class="lbl">Motor<span class="sub">GeckoView 155.0.20260903215306 · release</span></div></div>
+
+      <div class="section">Sobre</div>
+      <div class="info"><b>Histórico</b><span>37 itens</span></div>
+      <div class="info"><b>Compilação</b><span>0.1.0-unstable (da86251)</span></div>
+      <div class="row-card" style="margin:6px 20px 10px;align-items:center">
+        <div class="t" id="up-txt"><b>Canal instável</b><span>Uma chamada ao GitHub, só quando você toca.</span></div>
+        <button class="textbtn" id="up-btn">Verificar</button>
+      </div>
+      <div class="hint">Nada é consultado no início do app: um pedido ao GitHub a cada abertura contaria instalação para um terceiro.</div>
+      <div class="item"><div class="lbl">Diagnóstico<span class="sub">copia a sessão: versão, motor, aparelho, pilhas</span></div><button class="textbtn" id="copy-diag">Copiar</button></div>
+      <div style="padding:10px 20px 30px"><button class="fab" style="margin:0;background:transparent;border:1px solid var(--error);color:var(--error)">Limpar histórico, cache e cookies</button></div>
+    </section>
+  </div>
+
+  <!-- menu da página -->
+  <div class="scrim" id="scrim"></div>
+  <div class="sheet" id="menu">
+    <div class="grab"></div>
+    <div class="body">
+      <div class="item"><svg viewBox="0 0 24 24"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 10.5l6.8-4M8.6 13.5l6.8 4"/></svg><div class="lbl">Compartilhar</div></div>
+      <div class="item"><svg viewBox="0 0 24 24"><path d="M6 4h12v16l-6-4-6 4z"/></svg><div class="lbl">Adicionar aos favoritos</div></div>
+      <div class="item" data-act="find"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6"/><path d="M20 20l-4.5-4.5"/></svg><div class="lbl">Buscar na página</div></div>
+      <div class="item"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="12" rx="2"/><path d="M8 21h8"/></svg><div class="lbl">Versão para computador</div><div class="switch" role="switch" aria-checked="false"><i></i></div></div>
+      <div class="item"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M4 12h16M12 4c3 3 3 13 0 8M12 4c-3 3-3 13 0 8"/></svg><div class="lbl">JavaScript</div><div class="switch" role="switch" aria-checked="true"><i></i></div></div>
+      <div class="item"><svg viewBox="0 0 24 24"><path d="M12 3l8 3v6c0 5-3.4 8-8 9-4.6-1-8-4-8-9V6z"/></svg><div class="lbl">Proteção contra rastreamento</div><div class="switch" role="switch" aria-checked="true"><i></i></div></div>
+      <div class="sep"></div>
+      <div class="item" data-act="installstore"><svg viewBox="0 0 24 24"><path d="M20.5 11H19V7a2 2 0 00-2-2h-4V3.5a2.5 2.5 0 00-5 0V5H4a2 2 0 00-2 2v3.5h1.5a2.5 2.5 0 010 5H2V19a2 2 0 002 2h3.5v-1.5a2.5 2.5 0 015 0V21H17a2 2 0 002-2v-4h1.5a2.5 2.5 0 000-5z"/></svg><div class="lbl">Instalar da Chrome Web Store</div></div>
+      <div class="item" data-act="installfile"><svg viewBox="0 0 24 24"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 19h16"/></svg><div class="lbl">Instalar de arquivo (.crx/.xpi/.zip)</div></div>
+      <div class="sep"></div>
+      <div class="item"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2"/></svg><div class="lbl">Histórico</div></div>
+      <div class="item"><svg viewBox="0 0 24 24"><path d="M6 4h12v16l-6-4-6 4z"/></svg><div class="lbl">Favoritos</div></div>
+      <div class="item" data-act="settings"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 3v2m0 14v2M4.2 7l1.8 1m12 6l1.8 1M4.2 17L6 16m12-6l1.8-1"/></svg><div class="lbl">Configurações</div></div>
+      <div style="height:8px"></div>
+    </div>
+  </div>
+
+  <!-- diálogo de crash da sessão anterior -->
+  <div class="dialog" id="crashdlg"><div class="box">
+    <h3>O MobiBrowser caiu na última sessão</h3>
+    <pre>org.mozilla.geckoview.GeckoResult$UncaughtException: java.lang.IllegalStateException: Session is already attached
+	at org.mozilla.geckoview.GeckoResult.dispatchLocked(GeckoResult.java:782)
+	at org.mozilla.geckoview.GeckoResult.completeExceptionally(GeckoResult.java:946)
+	… 12 linhas …
+---- últimos 40 segundos de log ----
+12:26:58.104 [I][app] ──── sessão 12:26:58 ────
+12:26:58.233 [I][app] camadas construídas; iniciando gestor de extensões
+12:26:59.017 [W][gecko] o motor recusou o resultado; sigo sem valor</pre>
+    <div class="acts"><button class="textbtn" data-close="crash">Fechar</button><button class="textbtn" id="copy-crash">Copiar</button></div>
+  </div></div>
+
+  <div class="snack" id="snack">—</div>
+
+  <div class="bottombar" id="bottombar">
+    <button class="iconbtn" id="b-back" style="opacity:.38"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button>
+    <button class="iconbtn" id="b-fwd" style="opacity:.38"><svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></button>
+    <div class="grow"></div>
+    <button class="iconbtn" data-act="find"><svg viewBox="0 0 24 24"><circle cx="8" cy="14" r="3.4"/><circle cx="16" cy="14" r="3.4"/><path d="M4.6 11.5 6.5 6h3l1.4 3M17.5 6h3l1.9 5.5M12 14h-4m4 0h4"/></svg></button>
+    <button class="count" data-act="tabs" id="tabcount" title="2 abas abertas">2</button>
+    <button class="iconbtn" data-act="newtab"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
+  </div>
+</div></div>
+
+<script>
+/* ---------- dados que espelham o estado real do app ---------- */
+const TABS=[
+ {host:'mobi.link',title:'mobi.link',sel:true},
+ {host:'github.com',title:'HOWCKs/MobiBrowser · GitHub',sel:false},
+];
+const EXT=[
+ {n:'uBlock Origin',src:'bridge',badge:'12',state:'on',perm:'blockOrigin, tabs, storage'},
+ {n:'Dark Reader',src:'bridge',badge:'',state:'on',perm:'activeTab, storage'},
+ {n:'Ponte MobiBridge',src:'native',badge:'',state:'off',perm:'runtime, messaging'},
+];
+const SRC={bridge:['Compatibilidade (content scripts via MobiBridge)','pill warn'],
+            native:['Motor (GeckoView, executada como extensão real)','pill ok']};
+function renderTabs(){
+  document.getElementById('tabcards').innerHTML=TABS.map((t,i)=>`
+   <div class="tabcard ${t.sel?'sel':''}"><div class="head"><span class="fav">${t.host[0].toUpperCase()}</span>
+   <span class="name">${t.host}</span><span class="x" data-close-tab="${i}">✕</span></div>
+   <div class="thumb">${t.title}</div></div>`).join('');
+  document.getElementById('tabcount').textContent=TABS.length;
+  document.getElementById('tabcount').title=TABS.length+' abas abertas';
+}
+function renderExt(){
+  document.getElementById('extlist').innerHTML=EXT.map((e,i)=>`
+   <div class="row-card"><div class="ic">${e.n[0]}</div><div class="t"><b>${e.n}</b>
+   <span>${SRC[e.src][0]}</span>
+   <span style="color:var(--on-v)">${e.perm}</span></div>
+   ${e.badge?`<span class="badge">${e.badge}</span>`:''}
+   <div class="switch" role="switch" aria-checked="${e.state==='on'}" data-ext="${i}"><i></i></div></div>`).join('');
+}
+renderTabs();renderExt();
+
+/* ---------- navegação da prévia ---------- */
+const screens=document.querySelectorAll('.screen'),btns=document.querySelectorAll('#screens .btn');
+function go(s){screens.forEach(x=>x.classList.toggle('active',x.dataset.s===s));
+  btns.forEach(b=>b.classList.toggle('on',b.dataset.s===s));}
+btns.forEach(b=>b.onclick=()=>go(b.dataset.s));
+document.querySelectorAll('[data-act]').forEach(el=>el.onclick=()=>{
+  const a=el.dataset.act;
+  if(a==='tabs'){go('tabs');closeMenu()}
+  if(a==='settings'){go('set');closeMenu()}
+  if(a==='close-settings'){go('nav')}
+  if(a==='find'){closeMenu();document.getElementById('findbar').classList.add('open');document.getElementById('find-q').focus()}
+  if(a==='newtab'){TABS.push({host:'nova aba',title:'Pesquisar ou digitar URL',sel:true});TABS.forEach(t=>t.sel=false);TABS[TABS.length-1].sel=true;renderTabs();snack('Aba criada e selecionada — é o que a restauração tinha esquecido de fazer')}
+  if(a==='installstore'){go('ext');closeMenu()}
+  if(a==='installfile'){closeMenu();snack('Seletor de arquivos (OpenDocument) — o real usa o SAF')}
+});
+const menu=document.getElementById('menu'),scrim=document.getElementById('scrim');
+function openMenu(){menu.classList.add('open');scrim.classList.add('open')}
+function closeMenu(){menu.classList.remove('open');scrim.classList.remove('open')}
+document.getElementById('b-menu').onclick=()=>menu.classList.contains('open')?closeMenu():openMenu();
+scrim.onclick=closeMenu;
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeMenu();document.getElementById('findbar').classList.remove('open');closeDialog()}});
+
+/* ---------- interruptores e segmentados ---------- */
+document.addEventListener('click',e=>{
+  const sw=e.target.closest('.switch');
+  if(sw){sw.setAttribute('aria-checked',sw.getAttribute('aria-checked')==='true'?'false':'true');return}
+  const seg=e.target.closest('.seg button, .chips .chip');
+  if(seg&&seg.parentElement){[...seg.parentElement.children].forEach(c=>c.classList.remove('on'));seg.classList.add('on')}
+  const close=e.target.closest('[data-close-tab]');
+  if(close){const i=+close.dataset.closeTab;TABS.splice(i,1);if(!TABS.some(t=>t.sel)&&TABS.length)TABS[TABS.length-1].sel=true;renderTabs();snack(TABS.length+' abas');return}
+});
+document.getElementById('addr').onclick=()=>{
+  const a=document.getElementById('addr');a.classList.add('editing');
+  document.getElementById('addr-txt').textContent='https://';snack('Campo ativo: o real troca para o teclado e lista favoritos/histórico');
+  setTimeout(()=>{a.classList.remove('editing');document.getElementById('addr-txt').textContent='mobi.link'},2600);
+};
+document.getElementById('b-reload').onclick=()=>{
+  const p=document.getElementById('prog');p.style.width='0';requestAnimationFrame(()=>p.style.width='85%');
+  setTimeout(()=>{p.style.width='100%';setTimeout(()=>{p.style.width='0'},220)},700);
+};
+document.getElementById('t-find').onclick=()=>document.getElementById('findbar').classList.toggle('open');
+document.getElementById('find-x').onclick=()=>document.getElementById('findbar').classList.remove('open');
+document.querySelectorAll('[data-find]').forEach(b=>b.onclick=()=>{
+  const cur=+document.getElementById('find-n').textContent.split(' ')[0];
+  const next=b.dataset.find==='next'?Math.min(12,cur+1):Math.max(1,cur-1);
+  document.getElementById('find-n').textContent=next+' de 12';
+});
+document.getElementById('t-bars').onclick=function(){
+  const b=document.getElementById('bottombar'),t=document.getElementById('topbar');
+  const hidden=b.classList.toggle('hidden');t.style.display=hidden?'none':'';
+  this.textContent=hidden?'Mostrar barras':'Esconder barras';
+};
+document.getElementById('t-menu').onclick=()=>menu.classList.contains('open')?closeMenu():openMenu();
+document.getElementById('t-theme').onclick=function(){
+  const light=document.documentElement.classList.toggle('light');
+  this.textContent=light?'Tema escuro':'Tema claro';
+};
+
+/* ---------- verificador de atualização (estados reais do UpdateManager) ---------- */
+const UP=[
+ {k:'idle',t:'Canal instável',s:'Uma chamada ao GitHub, só quando você toca.',b:'Verificar'},
+ {k:'checking',t:'Consultando o canal no GitHub…',s:'',b:'…'},
+ {k:'uptodate',t:'Este já é o build mais novo do canal (da86251).',s:'sha do release = sha embutido no app',b:'Verificar'},
+ {k:'available',t:'Novo build 7c1e00a, de 2026-09-14 · 204 MB',s:'app-arm64-v8a-unstable.apk',b:'Baixar'},
+ {k:'downloading',t:'Baixando o instalador… 62%',s:'files/updates — não em cacheDir, que o sistema apaga',b:'—'},
+ {k:'ready',t:'Instalador pronto (204 MB).',s:'o sistema ainda pede confirmação antes de instalar',b:'Instalar'},
+ {k:'failed',t:'Não deu para verificar: o canal nightly ainda não foi publicado (HTTP 404)',s:'',b:'Tentar de novo'},
+];
+let upi=0;
+function paintUp(){const u=UP[upi];
+  document.getElementById('up-txt').innerHTML=`<b>${u.t}</b><span>${u.s}</span>`;
+  document.getElementById('up-btn').textContent=u.b;
+}
+document.getElementById('up-btn').onclick=()=>{
+  upi = upi>=UP.length-1 ? 0 : upi+1; paintUp();
+  snack('estado: '+UP[upi].k+'  (no app isto é o StateFlow do UpdateManager)');
+};
+document.getElementById('t-update').onclick=()=>{upi=3;paintUp();go('set');snack('UpdateManager.Status.Available')};
+
+/* ---------- aviso de crash ---------- */
+const dlg=document.getElementById('crashdlg');
+document.getElementById('t-crash').onclick=()=>dlg.classList.add('open');
+document.querySelector('[data-close="crash"]').onclick=()=>dlg.classList.remove('open');
+function closeDialog(){dlg.classList.remove('open')}
+document.getElementById('copy-crash').onclick=()=>snack('Pilha copiada (no app: ClipboardManager + MobiLog)');
+document.getElementById('copy-diag').onclick=()=>snack('MobiLog.report(ctx) copiaria a sessão inteira aqui');
+
+let snackTimer;
+function snack(t){const s=document.getElementById('snack');s.textContent=t;s.classList.add('show');
+  clearTimeout(snackTimer);snackTimer=setTimeout(()=>s.classList.remove('show'),2600)}
+paintUp();
+setInterval(()=>{const d=new Date();document.getElementById('clock').textContent=String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')},20000);
+</script>
+</body>
+</html>
