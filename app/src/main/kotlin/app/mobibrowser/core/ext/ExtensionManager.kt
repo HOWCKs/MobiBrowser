@@ -21,7 +21,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeoutOrNull
 import org.json.JSONArray
 import org.json.JSONObject
@@ -236,6 +235,7 @@ class ExtensionManager(
             engineMeta[ext.id] = snapshotOf(ext)
         }
         publish()
+        loadIcons()
     }
 
     private fun snapshotOf(ext: WebExtension): MetaSnapshot {
@@ -243,15 +243,36 @@ class ExtensionManager(
         return MetaSnapshot(
             name = meta?.name,
             description = meta?.description,
-            icon = runCatching {
-                runBlocking { withTimeoutOrNull(5_000) { meta?.icon?.getBitmap(64)?.awaitResult() } }
-            }.getOrNull(),
+            // O ícone chega depois, por [loadIcons]. Esperar um GeckoResult aqui seria deadlock:
+            // este método roda no handler thread (syncWithEngine está numa scope Main) e o
+            // resultado do próprio GeckoView só é entregue nesse mesmo looper — bloquear o
+            // looper esperando o looper congela o app antes do primeiro frame, sem exceção e
+            // sem crash: foi exatamente a tela preta do primeiro aparelho.
+            icon = null,
             permissions = meta?.requiredPermissions?.toList().orEmpty(),
             origins = meta?.requiredOrigins?.toList().orEmpty(),
             dataCollection = meta?.requiredDataCollectionPermissions?.toList().orEmpty(),
             rating = meta?.averageRating?.toDouble() ?: 0.0,
             location = ext.location,
         )
+    }
+
+    /**
+     * Ícones dos complementos, buscados em corrotina suspensiva — nunca bloqueando o handler
+     * thread. Cada ícone que chega republica a lista: atraso de ícone não pode atrasar a tela.
+     */
+    private fun loadIcons() {
+        engineExtensions.forEach { (id, ext) ->
+            if (engineMeta[id]?.icon != null) return@forEach
+            val icon = runCatching { ext.metaData?.icon }.getOrNull() ?: return@forEach
+            scope.launch {
+                val bitmap = runCatching {
+                    withTimeoutOrNull(6_000) { icon.getBitmap(64)?.awaitResult() }
+                }.getOrNull() ?: return@launch
+                engineMeta[id] = (engineMeta[id] ?: snapshotOf(ext)).copy(icon = bitmap)
+                publish()
+            }
+        }
     }
 
     private fun publish() {

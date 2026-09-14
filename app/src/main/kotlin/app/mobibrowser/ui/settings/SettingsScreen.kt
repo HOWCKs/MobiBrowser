@@ -50,6 +50,7 @@ import app.mobibrowser.R
 import app.mobibrowser.data.SearchEngine
 import app.mobibrowser.data.ThemeMode
 import app.mobibrowser.ui.MobiViewModel
+import app.mobibrowser.core.MobiLog
 import app.mobibrowser.ui.common.InfoRow
 import app.mobibrowser.ui.common.SectionHeader
 import app.mobibrowser.ui.common.SwitchRow
@@ -210,6 +211,32 @@ fun SettingsScreen(vm: MobiViewModel, onDismiss: () -> Unit) {
                         },
                     )
                     InfoRow("Compilação", "${BuildConfig.VERSION_NAME} (${BuildConfig.GIT_SHA})")
+                    val clipboard = androidx.compose.ui.platform.LocalClipboardManager.current
+                    val ctx = androidx.compose.ui.platform.LocalContext.current
+                    var copied by remember { mutableStateOf(false) }
+                    androidx.compose.foundation.layout.Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp),
+                        verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            text = if (copied) {
+                                "Copiado. Se quiser o texto completo do começo da sessão, ele também" +
+                                    " está em Android/data/${ctx.packageName}/files/logs/mobibrowser-log.txt."
+                            } else {
+                                "Travou ou abriu sem interface? Isto copia a sessão: versão, motor," +
+                                    " aparelho e as últimas linhas antes de parar."
+                            },
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.weight(1f),
+                        )
+                        androidx.compose.material3.TextButton(onClick = {
+                            clipboard.setText(androidx.compose.ui.text.AnnotatedString(MobiLog.report(ctx)))
+                            copied = true
+                        }) { Text("Diagnóstico") }
+                    }
                     Spacer(Modifier.height(6.dp))
                     Button(
                         onClick = { confirmClear = true },

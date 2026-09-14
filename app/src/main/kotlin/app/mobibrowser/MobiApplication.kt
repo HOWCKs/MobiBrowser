@@ -2,6 +2,7 @@ package app.mobibrowser
 
 import android.app.Application
 import android.content.Intent
+import app.mobibrowser.BuildConfig
 import app.mobibrowser.core.MobiLog
 import app.mobibrowser.core.engine.GeckoEngine
 import app.mobibrowser.core.engine.TabController
@@ -51,6 +52,11 @@ class MobiApplication : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        // Primeira linha de tudo: sem log em arquivo, uma inicialização travada é
+        // indistinguível de um app que "não abre" — e aqui o aparelho não tem adb.
+        MobiLog.attach(this)
+        MobiLog.guardCrashes()
+        MobiLog.i("app", "onCreate ${BuildConfig.VERSION_NAME} (${BuildConfig.GIT_SHA}) · motor ${BuildConfig.GECKOVIEW_VERSION}")
         prefs = AppPrefs(this)
         db = BrowserDb(this)
         engine = GeckoEngine(this)
@@ -67,8 +73,14 @@ class MobiApplication : Application() {
         )
         tabs = TabController(engine = engine, prefs = prefs, db = db, scope = appScope)
 
-        extensions.start()
-        appScope.launch { tabs.restoreOnStartup() }
+        MobiLog.i("app", "camadas construídas; iniciando gestor de extensões")
+        runCatching { extensions.start() }
+            .onFailure { MobiLog.e("app", "gestor de extensões não subiu; as telas seguem sem ele", it) }
+        appScope.launch {
+            runCatching { tabs.restoreOnStartup() }
+                .onSuccess { MobiLog.i("app", "abas no início: ${tabs.tabs.value.size} (home criada: ${it.createdHome})") }
+                .onFailure { MobiLog.e("app", "não consegui abrir a primeira aba", it) }
+        }
 
     }
 
