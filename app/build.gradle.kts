@@ -81,6 +81,7 @@ android {
         // para a própria release mudando UPDATE_REPO para dono/repo.
         buildConfigField("String", "UPDATE_REPO", "\"HOWCKs/MobiBrowser\"")
         buildConfigField("String", "UPDATE_TAG", "\"nightly\"")
+        buildConfigField("String", "GIT_SHA", "\"" + gitSha() + "\"")
         buildConfigField("boolean", "MOBI_DEBUG_LOGS", "true")
     }
 

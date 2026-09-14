@@ -73,6 +73,18 @@ jobs:
       - name: Checar comentários de bloco no Kotlin
         run: python3 tools/kotlin-comment-check.py app/src
 
+      # Um buildConfigField cortado por engano não gera erro no gradle: gera oito
+      # "Unresolved reference" em arquivos aleatórios do app, que é exatamente o que aconteceu
+      # quando o GIT_SHA sumiu da lista. Custa um grep e economiza um ciclo de 12 minutos.
+      - name: Conferir campos do BuildConfig
+        run: |
+          for field in GIT_SHA GECKOVIEW_VERSION GECKOVIEW_CHANNEL CWS_PRODVERSION UPDATE_REPO UPDATE_TAG; do
+            if ! grep -q "\"$field\"" app/build.gradle.kts; then
+              echo "::error::app/build.gradle.kts não declara buildConfigField \"$field\" — linha cortada na edição"
+              exit 1
+            fi
+          done
+
       - name: Lógica pura (conversor de manifest, parser de CRX)
         # Teste unitário vermelho NÃO segura mais o APK: neste projeto o veredito vem do
         # aparelho (feedback depois de instalar), e o que importa é o artefato sair. A falha

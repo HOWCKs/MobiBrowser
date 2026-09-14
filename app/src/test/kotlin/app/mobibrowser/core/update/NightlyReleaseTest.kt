@@ -3,6 +3,7 @@ package app.mobibrowser.core.update
 import org.json.JSONArray
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -53,7 +54,16 @@ class NightlyReleaseTest {
     }
 
     @Test
-    fun `titulo sem sha vira string vazia`() {
+    fun `comparacao de sha tolera prefixo curto e recusa vazio`() {
+        assertTrue(NightlyRelease.sameBuild("a42ba18", "a42ba18"))
+        assertTrue(NightlyRelease.sameBuild("a42ba18f2", "a42ba18"))
+        assertTrue(NightlyRelease.sameBuild("A42BA18", "a42ba18"))
+        assertFalse(NightlyRelease.sameBuild("a42ba18", "fffffff"))
+        assertFalse(NightlyRelease.sameBuild("", "a42ba18"))
+        assertFalse(NightlyRelease.sameBuild("a42ba18", ""))
+    }
+    @Test
+    fun `titulo sem sha vira string vazia"() {
         assertEquals("", NightlyRelease.shaOf("MobiBrowser nightly"))
         assertEquals("", NightlyRelease.shaOf("release de 2026 (temporário)"))
     }

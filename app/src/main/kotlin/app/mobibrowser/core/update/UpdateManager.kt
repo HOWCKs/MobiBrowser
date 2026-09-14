@@ -49,6 +49,19 @@ internal object NightlyRelease {
 
     fun shaOf(title: String): String = SHA_IN_TITLE.find(title)?.value.orEmpty()
 
+    /**
+     * "É o mesmo build?" — por prefixo, não por igualdade: `git rev-parse --short` devolve 7
+     * caracteres na maioria dos repositórios, mas aumenta sozinho quando o histórico cresce, e
+     * o CI compara o sha do Gradle com o sha do shell em dois runner distintos. Igualdade
+     * estrita aqui significaria oferecer o próprio build como atualização.
+     */
+    fun sameBuild(releaseSha: String, currentSha: String): Boolean {
+        if (releaseSha.isBlank() || currentSha.isBlank()) return false
+        return releaseSha.equals(currentSha, ignoreCase = true) ||
+            releaseSha.startsWith(currentSha, ignoreCase = true) ||
+            currentSha.startsWith(releaseSha, ignoreCase = true)
+    }
+
     fun parse(body: String): Info {
         val node = JSONObject(body)
         val title = node.optString("name").ifBlank { node.optString("tag_name") }
@@ -164,7 +177,7 @@ class UpdateManager(
         if (info.sha.isBlank()) {
             return Status.Failed("não consegui ler o commit no título do release")
         }
-        if (info.sha == BuildConfig.GIT_SHA) return Status.UpToDate(info.sha)
+        if (NightlyRelease.sameBuild(info.sha, BuildConfig.GIT_SHA)) return Status.UpToDate(info.sha)
         return Status.Available(
             title = info.title,
             publishedAt = info.publishedAt,
