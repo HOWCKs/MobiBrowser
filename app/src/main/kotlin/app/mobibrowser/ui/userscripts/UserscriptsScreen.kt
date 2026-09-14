@@ -79,7 +79,7 @@ fun UserscriptsScreen(vm: MobiViewModel, onDismiss: () -> Unit) {
 
     LaunchedEffect(refresh) { scripts = vm.scripts() }
 
-    val importPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument) { uri ->
+    val importPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) {
             vm.importUserscript(uri)
             refresh++

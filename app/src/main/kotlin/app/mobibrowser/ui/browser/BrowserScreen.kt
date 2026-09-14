@@ -240,8 +240,10 @@ fun BrowserScreen(
                         storeId = storeId.orEmpty(),
                         installing = progress is ExtensionManager.InstallProgress.Working,
                         onInstall = {
-                            vm.setStoreInstallInput(storeId)
-                            vm.installFromStore(storeId)
+                            // ouEmpty(): dentro do lambda o compilador não herda o "storeId !=
+                            // null" do AnimatedVisibility, então o nullability se perde.
+                            vm.setStoreInstallInput(storeId.orEmpty())
+                            vm.installFromStore(storeId.orEmpty())
                         },
                         onOpenExtensions = { vm.openExtensions() },
                     )

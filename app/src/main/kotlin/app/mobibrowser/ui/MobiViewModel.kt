@@ -14,6 +14,8 @@ import app.mobibrowser.data.Settings
 import app.mobibrowser.data.ThemeMode
 import app.mobibrowser.data.ScriptKind
 import app.mobibrowser.data.UserScript
+import app.mobibrowser.core.ext.BridgeScripts
+import app.mobibrowser.core.ext.ChromeWebStore
 import app.mobibrowser.core.ext.ExtensionRegistry
 import app.mobibrowser.core.engine.BrowserTab
 import androidx.compose.runtime.Immutable
@@ -377,11 +379,11 @@ class MobiViewModel(application: Application) : AndroidViewModel(application) {
     fun historyCount(): Int = runCatching { db.countHistory() }.getOrDefault(0)
 
     /** Prévia da loja no sheet de instalação (best effort: se falhar, só falta o preview). */
-    private val _storeSummary = MutableStateFlow<app.mobibrowser.core.ext.ChromeWebStore.Summary?>(null)
-    val storeSummary: StateFlow<app.mobibrowser.core.ext.ChromeWebStore.Summary?> = _storeSummary.asStateFlow()
+    private val _storeSummary = MutableStateFlow<ChromeWebStore.Summary?>(null)
+    val storeSummary: StateFlow<ChromeWebStore.Summary?> = _storeSummary.asStateFlow()
 
     fun previewStoreInstall(input: String) {
-        val id = app.mobibrowser.core.ext.ChromeWebStore.idFrom(input)
+        val id = ChromeWebStore.idFrom(input)
         _storeSummary.value = null
         if (id == null) return
         viewModelScope.launch {
@@ -392,7 +394,7 @@ class MobiViewModel(application: Application) : AndroidViewModel(application) {
 
     fun resyncExtensions() = viewModelScope.launch { extensions.syncWithEngine() }
 
-    val bridgeStats: StateFlow<app.mobibrowser.core.ext.BridgeScripts.InjectionStats> = app.bridge.stats
+    val bridgeStats: StateFlow<BridgeScripts.InjectionStats> = app.bridge.stats
 
     fun clearEverything() = viewModelScope.launch(Dispatchers.IO) {
         db.clearEverything()

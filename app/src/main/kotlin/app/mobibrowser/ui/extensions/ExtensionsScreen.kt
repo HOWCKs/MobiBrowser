@@ -95,7 +95,7 @@ fun ExtensionsScreen(vm: MobiViewModel, onDismiss: () -> Unit) {
     var installOpen by remember { mutableStateOf(false) }
     var expanded by remember { mutableStateOf<String?>(null) }
     var confirmUninstall by remember { mutableStateOf<ExtensionManager.ExtensionUiState?>(null) }
-    val filePicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument) { uri ->
+    val filePicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         uri?.let(vm::installFromUri)
     }
 
@@ -276,7 +276,7 @@ private fun BridgeStatusCard(
                 Icon(
                     if (settings) Icons.Default.CheckCircle else Icons.Default.Warning,
                     contentDescription = null,
-                    tint = if (settings.bridgeEnabled) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.error,
+                    tint = if (settings) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.error,
                 )
                 Spacer(Modifier.width(10.dp))
                 Text(

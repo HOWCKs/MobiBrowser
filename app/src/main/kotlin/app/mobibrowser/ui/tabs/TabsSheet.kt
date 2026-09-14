@@ -21,7 +21,7 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.PrivateTestingMode
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
@@ -217,7 +217,7 @@ private fun TabCard(
                     modifier = Modifier.padding(start = 10.dp, bottom = 6.dp),
                 ) {
                     Icon(
-                        Icons.Default.PrivateTestingMode,
+                        Icons.Default.VisibilityOff,
                         contentDescription = null,
                         modifier = Modifier.size(14.dp),
                         tint = MaterialTheme.colorScheme.tertiary,
