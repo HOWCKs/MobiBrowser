@@ -7,6 +7,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import app.mobibrowser.MobiApplication
 import app.mobibrowser.core.MobiLog
+import app.mobibrowser.core.EngineGuard
 import app.mobibrowser.core.engine.toNavigationTarget
 import app.mobibrowser.data.BrowserDb
 import app.mobibrowser.data.SearchEngine
@@ -113,7 +114,7 @@ class MobiViewModel(application: Application) : AndroidViewModel(application) {
      * Enquanto true, nada abre página: a UI existe sozinha, e é assim que se prova se quem
      * fechava o app era o Gecko ou o resto do app.
      */
-    val engineOff: Boolean get() = app.mobibrowser.core.EngineGuard.engineOff
+    val engineOff: Boolean get() = EngineGuard.engineOff
 
     fun setEngineOff(off: Boolean) = app.setEngineOffAndRestart(off)
 
