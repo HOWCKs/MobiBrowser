@@ -27,6 +27,49 @@ permissions:
   contents: write
 
 jobs:
+  # A etapa de teste dentro do job do APK é deliberadamente "continue-on-error": o veredito do
+  # projeto vem do aparelho, e um APK instável tem de sair mesmo com lógica vermelha. O preço dessa
+  # folga apareceu agora — um arquivo de teste com erro de sintaxe ficou vários runs sem ninguém
+  # notar, porque anotação no diff da PR não barra nada. Este job fecha a brecha: mesmo comando,
+  # sem a folga. Fica vermelho, o job do APK continua publicando do mesmo jeito.
+  testes:
+    name: Lógica pura (vermelho aparece no run, não segura o APK)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checar out
+        uses: actions/checkout@v4
+
+      - name: Configurar JDK 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Configurar Gradle (com cache de dependências)
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-read-only: ${{ github.ref != 'refs/heads/main' }}
+
+      - name: Rodar os testes JVM
+        run: ./gradlew --no-daemon --console=plain :app:testDebugUnitTest --stacktrace
+
+      # Sem isto, um run vermelho diria só "falhou" e a pilha ficaria a 3 mil linhas de distância.
+      - name: Publicar resumo dos testes
+        if: failure()
+        run: |
+          {
+            echo '### Testes JVM vermelhos'
+            echo
+            echo '```'
+            # Só o que falhou: o <testcase> que tem um <failure> filho, com a mensagem.
+            find app/build/test-results -name 'TEST-*.xml' -exec awk '
+              /<testcase/ { caso = $0 }
+              /<failure/ { gsub(/^ *| *$/, "", caso); print caso; print substr($0, 1, 400) }
+            ' {} \; 2>/dev/null | head -40
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
   apk:
     name: Compilar APK (${{ github.event.inputs.build_type || 'unstable' }})
     runs-on: ubuntu-latest

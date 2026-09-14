@@ -63,7 +63,7 @@ class NightlyReleaseTest {
         assertFalse(NightlyRelease.sameBuild("a42ba18", ""))
     }
     @Test
-    fun `titulo sem sha vira string vazia"() {
+    fun `titulo sem sha vira string vazia`() {
         assertEquals("", NightlyRelease.shaOf("MobiBrowser nightly"))
         assertEquals("", NightlyRelease.shaOf("release de 2026 (temporário)"))
     }

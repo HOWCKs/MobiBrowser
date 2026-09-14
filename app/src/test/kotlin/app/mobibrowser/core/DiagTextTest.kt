@@ -17,7 +17,7 @@ class DiagTextTest {
         appendLine("pid: 18232, tid: 18255, name: Gecko >>> app.mobibrowser <<<")
         appendLine("signal 6 (SIGABRT), code -1 (SI_QUEUE), fault addr --------")
         appendLine("Abort message = 'Assertion failure: !IsOnReaderThread(), at nsIRequest'")
-        for (i in 1..400) appendLine("    #$i pc 00000000000$f  /data/app/~~xx/lib/arm64/libxul.so (some::frame)")
+        for (i in 1..400) appendLine("    #$i pc 00000000000f4a2c  /data/app/~~xx/lib/arm64/libxul.so (some::frame)")
     }
 
     @Test
