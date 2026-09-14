@@ -12,6 +12,7 @@ import app.mobibrowser.core.ext.ExtensionManager
 import app.mobibrowser.core.ext.ExtensionRegistry
 import app.mobibrowser.data.AppPrefs
 import app.mobibrowser.data.BrowserDb
+import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -30,7 +31,22 @@ import kotlinx.coroutines.launch
  */
 class MobiApplication : Application() {
 
-    val appScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+    /**
+     * Escopo das camadas. O handler existe porque um `launch` avulso sem `CoroutineExceptionHandler`
+     * entrega o erro à thread — e na main thread isso encerra o processo. Num navegador em que o
+     * motor responde por GeckoResult (ponte recusada, extensão inválida, storage ocupado), isso é
+     * a diferença entre "uma função ficou indisponível" e "o app fecha sozinho".
+     */
+    val appScope = CoroutineScope(
+        SupervisorJob() + Dispatchers.Main.immediate +
+            CoroutineExceptionHandler { _, error ->
+                MobiLog.e("app", "coroutine de fundo lançou fora de qualquer runCatching; o app segue", error)
+            },
+    )
+
+    /** Pilha da morte anterior, mostrada uma vez na primeira tela. `MobiLog.takePendingCrash`. */
+    var pendingCrash: String? = null
+        private set
 
     lateinit var prefs: AppPrefs
         private set
@@ -62,6 +78,10 @@ class MobiApplication : Application() {
         // indistinguível de um app que "não abre" — e aqui o aparelho não tem adb.
         MobiLog.attach(this)
         MobiLog.guardCrashes()
+        // Antes de qualquer outra coisa: se a sessão passada terminou em FATAL, a pessoa precisa
+        // ver isso sem correr contra o próximo crash para chegar em Configurações → Sobre.
+        pendingCrash = MobiLog.takePendingCrash(this)
+        if (pendingCrash != null) MobiLog.e("app", "sessão anterior terminou em FATAL; avisando na primeira tela")
         MobiLog.i("app", "onCreate ${BuildConfig.VERSION_NAME} (${BuildConfig.GIT_SHA}) · motor ${BuildConfig.GECKOVIEW_VERSION}")
         prefs = AppPrefs(this)
         db = BrowserDb(this)

@@ -9,9 +9,16 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarHost
@@ -24,6 +31,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.mobibrowser.core.ext.ExtensionManager
@@ -160,6 +169,41 @@ fun MobiApp(vm: MobiViewModel) {
 
         if (overlay == Overlay.FIRST_RUN) {
             FirstRunSheet(onContinue = vm::finishFirstRun)
+        }
+
+        // Morte da sessão anterior, mostrada aqui e não em Configurações → Sobre por um motivo
+        // prático: se o app cai em poucos segundos, ninguém chega a tempo de navegar até o botão
+        // de copiar. É o único canal de diagnóstico de quem não tem cabo.
+        val crash = vm.crashNotice.collectAsStateWithLifecycle().value
+        if (crash != null) {
+            val clipboard = androidx.compose.ui.platform.LocalClipboardManager.current
+            var copied by remember { mutableStateOf(false) }
+            AlertDialog(
+                onDismissRequest = { vm.dismissCrashNotice() },
+                title = { Text("O MobiBrowser caiu na última sessão") },
+                text = {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .verticalScroll(rememberScrollState()),
+                    ) {
+                        Text(
+                            text = crash,
+                            style = MaterialTheme.typography.bodySmall,
+                            fontFamily = FontFamily.Monospace,
+                        )
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = {
+                        clipboard.setText(AnnotatedString(crash))
+                        copied = true
+                    }) { Text(if (copied) "Copiado" else "Copiar") }
+                },
+                dismissButton = {
+                    TextButton(onClick = { vm.dismissCrashNotice() }) { Text("Fechar") }
+                },
+            )
         }
     }
 }

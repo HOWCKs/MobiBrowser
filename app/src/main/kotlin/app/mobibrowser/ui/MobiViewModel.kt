@@ -71,6 +71,18 @@ class MobiViewModel(application: Application) : AndroidViewModel(application) {
     private val _overlay = MutableStateFlow(Overlay.NONE)
     val overlay: StateFlow<Overlay> = _overlay.asStateFlow()
 
+    /**
+     * Pilha da morte anterior, lida do arquivo que [app.mobibrowser.core.MobiLog.guardCrashes]
+     * deixou. Vive na ViewModel e não em Settings → Sobre porque o aviso precisa aparecer antes
+     * de a pessoa ter de navegar até algum lugar — e antes de um próximo crash.
+     */
+    private val _crashNotice = MutableStateFlow(app.pendingCrash)
+    val crashNotice: StateFlow<String?> = _crashNotice.asStateFlow()
+
+    fun dismissCrashNotice() {
+        _crashNotice.value = null
+    }
+
     /** Aviso rápido para o usuário: a UI só conhece [snack], ninguém emite SnackbarMessage na mão. */
     private suspend fun snack(text: String, actionLabel: String? = null) {
         _snack.emit(SnackbarMessage(text, actionLabel))

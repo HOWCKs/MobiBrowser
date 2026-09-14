@@ -7,6 +7,7 @@ import app.mobibrowser.BuildConfig
 import java.io.File
 import java.io.FileOutputStream
 import java.io.PrintWriter
+import java.io.StringWriter
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -33,33 +34,81 @@ object MobiLog {
     private val stamp = SimpleDateFormat("HH:mm:ss.SSS", Locale.US)
     private val ring = ArrayDeque<String>()
     private var writer: PrintWriter? = null
+    private var logFile: File? = null
+    private var crashFile: File? = null
     private var startedAt = 0L
+
+    /** Arquivo lido pela próxima abertura para avisar de morte anterior (sem `adb`, é o único canal). */
+    private const val CRASH_FILE = "mobibrowser-crash.txt"
 
     /** Chamar na primeira linha do `Application.onCreate`, antes de qualquer outra camada. */
     fun attach(context: Context) {
         startedAt = System.currentTimeMillis()
         val dir = File(context.getExternalFilesDir(null) ?: context.filesDir, "logs")
         val file = File(dir, "mobibrowser-log.txt")
+        crashFile = File(context.filesDir, CRASH_FILE)
         runCatching {
             dir.mkdirs()
             if (file.exists() && file.length() > MAX_FILE_BYTES) file.delete()
             writer = PrintWriter(FileOutputStream(file, true), true)
+            logFile = file
         }.onFailure { Log.w(TAG, "sem arquivo de log: ${it.message}") }
-        i("app", "log em ${file.absolutePath}")
+        i("app", "──── sessão ${stamp.format(Date(startedAt))} ────")
     }
 
     /**
-     * Última linha de defesa: copia o estado para o arquivo antes de o sistema matar o
-     * processo. Sem isto, um estouro na criação do `GeckoRuntime` deixa só um buraco negro na
-     * tela e uma pilha que ninguém vê.
+     * Última linha de defesa: escreve a pilha em dois destinos antes de o processo acabar — o
+     * arquivo de log, para quem consegue abrir a tela Sobre, e um arquivo de crash que a
+     * PRÓXIMA abertura mostra na primeira tela. Sem o segundo, um app que morre em segundos num
+     * aparelho sem `adb` é indistinguível de um app que não abre: a pessoa não tem como chegar ao
+     * botão de copiar a tempo.
      */
     fun guardCrashes() {
         val previous = Thread.getDefaultUncaughtExceptionHandler()
         Thread.setDefaultUncaughtExceptionHandler { thread, error ->
             e("app", "FATAL em '${thread.name}'", error)
+            val trace = StringWriter().let { sink ->
+                PrintWriter(sink).use { it.println(Log.getStackTraceString(error)) }
+                sink.toString()
+            }
+            runCatching {
+                crashFile?.writeText(
+                    buildString {
+                        appendLine("MobiBrowser ${BuildConfig.VERSION_NAME} (${BuildConfig.GIT_SHA})")
+                        appendLine("motor: GeckoView ${BuildConfig.GECKOVIEW_VERSION} · canal ${BuildConfig.GECKOVIEW_CHANNEL}")
+                        appendLine("${Build.MANUFACTURER} ${Build.MODEL} · Android ${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT})")
+                        appendLine("abi: ${Build.SUPPORTED_ABIS.joinToString()}")
+                        appendLine("thread: ${thread.name}")
+                        appendLine()
+                        appendLine(trace)
+                        appendLine("---- últimos 40 segundos de log ----")
+                        appendLine(tail(60))
+                    },
+                )
+            }
             runCatching { writer?.flush() }
-            runCatching { previous?.uncaughtException(thread, error) }
+            // Só a main thread devolve o erro ao sistema (sem ela não há UI para manter viva, e
+            // engolir ali escondceria um erro irrecuperável). Uma thread de fundo que morre, ao
+            // contrário, não pode levar o navegador inteiro junto: era isso que transformava
+            // "o motor recusou a ponte" em "o app fecha sozinho".
+            if (thread.name == "main") {
+                runCatching { previous?.uncaughtException(thread, error) }
+            } else {
+                Log.e(TAG, "mantendo o app vivo após FATAL em '${thread.name}'", error)
+            }
         }
+    }
+
+    /**
+     * A pilha da morte anterior, se houver. Lida e apagada: é um aviso de uma vez, não uma
+     * cicatriz permanente na primeira tela.
+     */
+    fun takePendingCrash(context: Context): String? {
+        val file = crashFile ?: File(context.filesDir, CRASH_FILE)
+        if (!file.isFile) return null
+        val text = runCatching { file.readText() }.getOrNull()
+        runCatching { file.delete() }
+        return text?.takeIf { it.isNotBlank() }
     }
 
     fun d(scope: String, msg: String) {
@@ -111,6 +160,11 @@ object MobiLog {
         appendLine("memória: ${rt.maxMemory() / 1048576} MB teto · ${rt.totalMemory() / 1048576} MB reservadas")
         appendLine("sessão: ${System.currentTimeMillis() - startedAt} ms desde o onCreate · ${ring.size} linhas no anel")
         appendLine("---- log ----")
-        append(tail())
+        // O anel em memória guarda uma linha por evento; só o arquivo tem as pilhas. Prefiro o
+        // arquivo e deixo o anel como reserva (storage externo não montado, arquivo desativado).
+        val fromFile = runCatching {
+            logFile?.readLines()?.takeLast(400)?.joinToString("\n")
+        }.getOrNull()
+        append(fromFile?.takeIf { it.isNotBlank() } ?: tail())
     }
 }

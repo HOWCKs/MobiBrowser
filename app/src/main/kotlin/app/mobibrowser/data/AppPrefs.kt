@@ -76,6 +76,7 @@ class AppPrefs(private val context: Context) {
     suspend fun setUserscriptsEnabled(enabled: Boolean) = edit { it[Key.USERSCRIPTS] = enabled }
     suspend fun setToolbarBottom(bottom: Boolean) = edit { it[Key.TOOLBAR_BOTTOM] = bottom }
     suspend fun setLastUsedTab(id: String) = edit { it[Key.LAST_TAB] = id }
+    suspend fun lastUsedTab(): String? = snapshot()[Key.LAST_TAB]
     suspend fun setTrackingProtectionDefault(enabled: Boolean) = edit { it[Key.TRACKING_DEFAULT] = enabled }
     suspend fun setGlobalPrivacyControl(enabled: Boolean) = edit { it[Key.GPC] = enabled }
 

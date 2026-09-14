@@ -148,6 +148,13 @@ class TabController(
             create(home, isPrivate = false, select = true)
             return RestoreResult(createdHome = true)
         }
+        // A aba ativa é parte da restauração, não um detalhe. `create(select = false)` acima
+        // deixava _selectedId nulo com abas vivas por baixo: a tela caía no estado vazio, o
+        // contador dizia 0 e o motor continuava carregando uma página invisível — foi exatamente
+        // o "tenho abas abertas mas ele mostra 0" relatado no aparelho.
+        val lastUsed = runCatching { prefs.lastUsedTab() }.getOrNull()
+            ?.takeIf { id -> _tabs.value.any { it.id == id } }
+        select(lastUsed ?: _tabs.value.last().id)
         return RestoreResult(createdHome = false)
     }
 
