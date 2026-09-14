@@ -59,7 +59,10 @@ class MatchPatternTest {
 
     @Test
     fun `matchesAny aceita lista`() {
-        assertTrue(MatchPattern.matchesAny(listOf("*://cdn.*/*"), "https://cdn.exemplo.com/x.js"))
+        // `cdn.*` não é um match pattern válido no Chrome (curinga de host só vale como o
+        // prefixo "*."); a implementation recusa de propósito, porque um curinga solto no meio
+        // abriria exceções de interpretação de manifest. O caso real é o subdomínio.
+        assertTrue(MatchPattern.matchesAny(listOf("*://*.cdn-exemplo.com/*"), "https://a.cdn-exemplo.com/x.js"))
         assertFalse(MatchPattern.matchesAny(emptyList(), "https://exemplo.com/"))
     }
 }

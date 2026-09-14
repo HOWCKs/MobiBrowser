@@ -160,11 +160,35 @@ jobs:
             echo "Artefato **instável**: assinatura de debug, sem ofuscação, logcat do motor ligado."
           } >> "$GITHUB_STEP_SUMMARY"
 
+      - name: Separar os APKs para download
+        run: |
+          mkdir -p dist/apks
+          # O universal é a soma de todas as ABIs (~3x o tamanho) e é raríssimo precisar dele:
+          # quem instala à mão escolhe o split do aparelho. Ele continua no build, só não no
+          # artefato — 589 MB de download no celular não é um loop de feedback razoável.
+          find app/build/outputs/apk -name '*.apk' ! -name '*universal*' -exec cp -v {} dist/apks/ \;
+          {
+            echo "## APKs instáveis (prontos para instalar)"
+            echo ""
+            echo "| arquivo | tamanho | para quem |"
+            echo "|---|---|---|"
+            for f in dist/apks/*.apk; do
+              sz=$(stat -c %s "$f")
+              abi=$(basename "$f" .apk | sed 's/.*unstable-//')
+              echo "| \`$(basename "$f")\` | $((sz/1048576)) MB | \`$abi\` — **este é o do seu aparelho se ele for dos últimos 8 anos** |"
+            done
+            echo ""
+            echo "Se aparecer \`INSTALL_FAILED_NO_MATCHING_ABIS\`, é o split errado (ou o caso raro"
+            echo "de x86): me avise que eu publico o universal."
+          } >> "$GITHUB_STEP_SUMMARY"
+          ls -la dist/apks
+
       - name: Publicar artefato instável
         uses: actions/upload-artifact@v4
         with:
           name: mobibrowser-apk-${{ github.sha }}
-          path: app/build/outputs/apk/**/*.apk
+          path: dist/apks/*.apk
           if-no-files-found: error
-          compression-level: 6
+          # Os .apk já são ZIPs comprimidos; nivel 1 evita queimar minuto do runner.
+          compression-level: 1
           retention-days: 7
