@@ -37,7 +37,7 @@ Havendo build novo, o mesmo card oferece **Baixar** e depois **Instalar**:
   pede confirmação e, na primeira vez, a permissão *Instalar apps desconhecidos*. Nada é
   instalado em silêncio — e não há como haver.
 - se faltar a permissão, o app abre o ajuste certo e mantém o arquivo baixado: o próximo toque
-  instala, sem baixar 115 MB de novo.
+  instala, sem baixar 200 MB de novo.
 
 Nada é consultado no início do app. Uma chamada ao GitHub a cada abertura seria um canário de
 instalação entregue a um terceiro, num navegador cujo argumento é justamente reduzir

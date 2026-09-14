@@ -92,9 +92,10 @@ internal object NightlyRelease {
      * impede o `NO_MATCHING_ABIS` no instalador: um x86_64 recebendo arm64 falha tarde demais.
      */
     fun pickAsset(assets: List<Asset>, supportedAbis: List<String>): Asset? {
-        // Casamento por token delimitado, nunca por contains solto: um aparelho x86 veria
-        // "-x86" dentro de app-x86_64-unstable.apk e o instalador morreria depois de baixarmos
-        // 115 MB. O mesmo vale para armeabi-v7a vs arm64-v8a.
+        // Casamento por token delimitado: um aparelho x86 veria "-x86" dentro de
+        // app-x86_64-unstable.apk. O mesmo par vale para armeabi-v7a contra arm64-v8a.
+        // Não há reserva frouxa de propósito — baixar 200 MB para levar NO_MATCHING_ABIS é
+        // pior do que ouvir "não há APK para este aparelho" antes de gastar a internet.
         val names = assets.map { it.name.lowercase() }
         for (abi in supportedAbis) {
             val token = abi.lowercase()
@@ -193,7 +194,7 @@ class UpdateManager(
             val target = File(downloadDir, "update.apk")
             runCatching {
                 withContext(Dispatchers.IO) {
-                    // descarta APKs de tentativas anteriores antes de gastar 115 MB de novo
+                    // descarta APKs de tentativas anteriores antes de gastar 200 MB de novo
                     downloadDir.listFiles()?.forEach { if (it != target) it.delete() }
                     target.delete()
                     val conn = URL(assetUrl).openConnection() as HttpURLConnection
