@@ -283,11 +283,17 @@ fun BrowserScreen(
                             }
                             AndroidView(
                                 factory = { ctx -> GeckoView(ctx) },
-                                update = { it.setSession(ui.session) },
-                                // Compose destrói o AndroidView ao sair da composição. Sem
-                                // desanexar aqui, a sessão da popup ficaria presa a uma view
-                                // morta — e o GeckoView não é recurso de UI, é do motor.
-                                onRelease = { view -> view.setSession(null) },
+                                update = { view ->
+                                    // GeckoView exige releaseSession() antes de trocar: setSession
+                                    // com uma sessão já aberta nesta view lança IllegalStateException.
+                                    if (view.session !== ui.session) {
+                                        view.releaseSession()
+                                        view.setSession(ui.session)
+                                    }
+                                },
+                                // O Compose destrói o AndroidView ao sair da composição; a sessão
+                                // é recurso do motor, não da view — devolvê-la aqui.
+                                onRelease = { view -> view.releaseSession() },
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .heightIn(min = 220.dp, max = 480.dp),
@@ -342,11 +348,17 @@ private fun EngineSurface(tab: BrowserTab, modifier: Modifier = Modifier) {
                 setBackgroundColor(Color.Transparent.toArgb())
             }
         },
-        update = { view -> view.setSession(tab.session) },
-        // Mesma razão da popup: EngineSurface sai da composição quando as barras animam ou
-        // quando a aba troca; a sessão, essa sim, continua viva no motor. Desanexar na liberação
-        // evita o estado "sessão anexada a uma view que já foi descartada".
-        onRelease = { view -> view.setSession(null) },
+        update = { view ->
+            // Idem popup — e é o caminho crítico do início: com a restauração deixando uma aba
+            // ativa, o update roda mais de uma vez com sessões diferentes, e sem releaseSession()
+            // o segundo setSession é um IllegalStateException na main thread (o doc do 155 é
+            // explícito: "you must use releaseSession() first, otherwise IllegalStateException").
+            if (view.session !== tab.session) {
+                view.releaseSession()
+                view.setSession(tab.session)
+            }
+        },
+        onRelease = { view -> view.releaseSession() },
         modifier = modifier.fillMaxSize(),
     )
 }
