@@ -225,6 +225,19 @@ keyPassword=…
 
 ---
 
+## Se o app fechar sozinho
+
+O `EngineGuard` (`core/EngineGuard.kt`) grava em arquivo em que ponto o motor nasceu: `STARTING`
+antes de criar o `GeckoRuntime`, `READY` quando a primeira sessão abre. Se a abertura anterior
+parou no meio, a próxima começa **sem** o motor de extensões e sem o YAML de pacote sem
+assinatura, mostra o aviso na primeira tela e continua navegando. É automático e autolimitado:
+uma abertura limpa reseta o estado.
+
+Para o caso em que nem isso basta, Configurações → Motor tem **Desligar o motor (diagnóstico)**:
+o app reinicia sem tocar no Gecko. Caindo mesmo assim, a causa não é o motor; não caindo, é.
+Isso existe porque este projeto é testado em aparelho sem `adb` — a alavanca tem de ficar na mão
+de quem instala, não no logcat de quem compila.
+
 ## Limitações conhecidas
 
 - O suporte a extensão não assinada depende do canal nightly do motor. Num build com

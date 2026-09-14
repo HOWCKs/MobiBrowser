@@ -108,13 +108,33 @@ class MobiViewModel(application: Application) : AndroidViewModel(application) {
 
     /* ------------------------------ navegação ------------------------------ */
 
+    /**
+     * Motor pausado de propósito (recuperação do EngineGuard ou escolha em Configurações).
+     * Enquanto true, nada abre página: a UI existe sozinha, e é assim que se prova se quem
+     * fechava o app era o Gecko ou o resto do app.
+     */
+    val engineOff: Boolean get() = app.mobibrowser.core.EngineGuard.engineOff
+
+    fun setEngineOff(off: Boolean) = app.setEngineOffAndRestart(off)
+
+    /** Aviso único para os caminhos que precisariam do motor. Sem isto, o toque "não faz nada". */
+    private fun engineOffNotice(): Boolean {
+        if (!engineOff) return false
+        viewModelScope.launch {
+            snack("Motor desligado para diagnóstico — reative em Configurações → Motor")
+        }
+        return true
+    }
+
     fun submit(raw: String) {
+        if (engineOffNotice()) return
         val engine = settings.value.searchEngine
         val url = raw.toNavigationTarget(engine.url)
         openUrl(url)
     }
 
     fun openUrl(url: String) {
+        if (engineOffNotice()) return
         tabs.openInSelectedOrNew(url, isPrivate = tabs.selectedIsPrivate())
         _overlay.value = Overlay.NONE
     }
@@ -125,6 +145,7 @@ class MobiViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun newTab(privateMode: Boolean = tabs.selectedIsPrivate()) {
+        if (engineOffNotice()) return
         tabs.create(url = settings.value.homepage, isPrivate = privateMode)
     }
 

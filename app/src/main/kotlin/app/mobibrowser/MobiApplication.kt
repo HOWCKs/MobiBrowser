@@ -3,6 +3,7 @@ package app.mobibrowser
 import android.app.Application
 import android.content.Intent
 import app.mobibrowser.BuildConfig
+import app.mobibrowser.core.EngineGuard
 import app.mobibrowser.core.MobiLog
 import app.mobibrowser.core.engine.GeckoEngine
 import app.mobibrowser.core.update.UpdateManager
@@ -17,6 +18,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 /**
@@ -78,10 +80,13 @@ class MobiApplication : Application() {
         // indistinguível de um app que "não abre" — e aqui o aparelho não tem adb.
         MobiLog.attach(this)
         MobiLog.guardCrashes()
+        // O guarda vem em segundo lugar, antes de qualquer camada tocar o motor: é ele que decide
+        // se esta abertura começa em recuperação (sessão anterior parada no berço do Gecko).
+        EngineGuard.begin(this)
         // Antes de qualquer outra coisa: se a sessão passada terminou em FATAL, a pessoa precisa
         // ver isso sem correr contra o próximo crash para chegar em Configurações → Sobre.
-        pendingCrash = MobiLog.takePendingCrash(this)
-        if (pendingCrash != null) MobiLog.e("app", "sessão anterior terminou em FATAL; avisando na primeira tela")
+        pendingCrash = MobiLog.takePendingCrash(this) ?: EngineGuard.notice
+        if (pendingCrash != null) MobiLog.e("app", "aviso da sessão anterior pronto para a primeira tela")
         MobiLog.i("app", "onCreate ${BuildConfig.VERSION_NAME} (${BuildConfig.GIT_SHA}) · motor ${BuildConfig.GECKOVIEW_VERSION}")
         prefs = AppPrefs(this)
         db = BrowserDb(this)
@@ -99,11 +104,26 @@ class MobiApplication : Application() {
         )
         tabs = TabController(engine = engine, prefs = prefs, db = db, scope = appScope)
         updates = UpdateManager(context = this, scope = appScope)
+        engine.skipAddonConfig = EngineGuard.extensionsPaused
 
         MobiLog.i("app", "camadas construídas; iniciando gestor de extensões")
-        runCatching { extensions.start() }
-            .onFailure { MobiLog.e("app", "gestor de extensões não subiu; as telas seguem sem ele", it) }
+        if (EngineGuard.extensionsPaused) {
+            MobiLog.w("app", "motor de extensões pausado pela recuperação; navegação segue normal")
+        } else {
+            runCatching { extensions.start() }
+                .onFailure { MobiLog.e("app", "gestor de extensões não subiu; as telas seguem sem ele", it) }
+        }
         appScope.launch {
+            if (EngineGuard.engineOff) {
+                // Alavanca de diagnóstico: sem tocar em Gecko, qualquer fechamento restante é do
+                // app (Compose/persistência), e é isso que precisa ficar provado.
+                MobiLog.i("app", "motor desligado manualmente: nenhuma aba criada nesta abertura")
+                return@launch
+            }
+            // Pequena espera de fôlego: a primeira composição existe antes do processo do motor
+            // nascer. Não é enfeite — com o motor criado na mesma pilha do onCreate, um abort
+            // nativo levava a tela junto antes de qualquer frame, e ninguém via nada.
+            delay(180)
             runCatching { tabs.restoreOnStartup() }
                 .onSuccess { MobiLog.i("app", "abas no início: ${tabs.tabs.value.size} (home criada: ${it.createdHome})") }
                 .onFailure { MobiLog.e("app", "não consegui abrir a primeira aba", it) }
@@ -117,6 +137,24 @@ class MobiApplication : Application() {
      * não tem esse callback, por isso não há override aqui.
      */
     fun consumePendingUrl(): String? = pendingIntentUrl.also { pendingIntentUrl = null }
+
+    /**
+     * Liga/desliga o motor para diagnóstico e reinicia. Reiniciar é obrigatório porque runtime,
+     * abas e extensões nascem no onCreate — não existe "religar" sem reconstruir o processo, e
+     * fingir que existe deixaria a UI mentindo sobre o estado real.
+     */
+    fun setEngineOffAndRestart(off: Boolean) {
+        EngineGuard.setEngineOff(this, off)
+        runCatching {
+            packageManager.getLaunchIntentForPackage(packageName)?.let {
+                it.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
+                startActivity(it)
+            }
+        }.onFailure { MobiLog.w("app", "não consegui reiniciar sozinho; feche e abra de novo", it) }
+        // O novo processo já foi posto para nascer; encerrar este aqui é o que garante que o
+        // onCreate rode do zero (flags do guarda são lidas uma única vez, de propósito).
+        android.os.Process.killProcess(android.os.Process.myPid())
+    }
 
     override fun onLowMemory() {
         super.onLowMemory()

@@ -254,6 +254,30 @@ fun BrowserScreen(
                 InstallStatusCard(progress = progress!!, onDismiss = vm::dismissInstallProgress)
             }
 
+            if (vm.engineOff) {
+                Surface(
+                    color = MaterialTheme.colorScheme.errorContainer,
+                    shape = MaterialTheme.shapes.small,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp, vertical = 6.dp),
+                ) {
+                    androidx.compose.foundation.layout.Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(start = 14.dp, end = 6.dp),
+                    ) {
+                        Text(
+                            text = "Motor desligado para diagnóstico. Nada abre página até você " +
+                                "reativar — as telas locais continuam funcionando.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onErrorContainer,
+                            modifier = Modifier.weight(1f),
+                        )
+                        TextButton(onClick = { vm.setEngineOff(false) }) { Text("Reativar") }
+                    }
+                }
+            }
+
             // Popup da extensão: folha modal com a sessão que o motor nos deu.
             popup?.let { ui ->
                 Dialog(

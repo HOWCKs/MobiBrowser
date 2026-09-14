@@ -2,6 +2,7 @@ package app.mobibrowser.core.engine
 
 import android.content.Context
 import app.mobibrowser.BuildConfig
+import app.mobibrowser.core.EngineGuard
 import app.mobibrowser.core.MobiLog
 import org.mozilla.geckoview.GeckoRuntime
 import org.mozilla.geckoview.GeckoRuntimeSettings
@@ -26,8 +27,22 @@ class GeckoEngine(context: Context) {
 
     private val appContext = context.applicationContext
 
+    /**
+     * true quando esta abertura deve nascer sem o YAML que libera pacote sem assinatura.
+     * Definido por [app.mobibrowser.MobiApplication] a partir do EngineGuard: é esse arquivo
+     * que dá ao canal estável um motivo a mais para reclamar na criação do runtime.
+     */
+    @Volatile
+    var skipAddonConfig: Boolean = false
+
+    @Volatile
+    private var readyMarked: Boolean = false
+
     val runtime: GeckoRuntime by lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
         MobiLog.i(SCOPE, "criando GeckoRuntime (GeckoView ${BuildConfig.GECKOVIEW_VERSION})")
+        // Antes de qualquer outra coisa: se o processo morrer aqui, a próxima abertura vê
+        // STARTING sem READY e entra em recuperação em vez de fechar sozinha de novo.
+        EngineGuard.markStarting(appContext)
         GeckoRuntime.create(appContext, settings())
     }
 
@@ -48,12 +63,20 @@ class GeckoEngine(context: Context) {
             .javaScriptEnabled(true)
             .automaticFontSizeAdjustment(false)
             .webManifest(true)
-            // Autofill de senhas: o motor pede ao app; habilitado para o delegate responder.
-            .loginAutofillEnabled(true)
             .consoleOutput(BuildConfig.MOBI_DEBUG_LOGS)
-            .remoteDebuggingEnabled(BuildConfig.MOBI_DEBUG_LOGS)
+            // Depuração remota abre soquete de DevTools. Útil em `debug`, indecente num APK que
+            // outras pessoas instalam — e o build instável não é debuggable, então era só risco.
+            .remoteDebuggingEnabled(BuildConfig.DEBUG)
             .debugLogging(BuildConfig.MOBI_DEBUG_LOGS)
-        if (BuildConfig.MOBI_ALLOW_UNSIGNED_ADDONS) {
+        // loginAutofillEnabled(true) sem LoginDelegate implementado só mantinha o serviço de
+        // senhas do motor acordado, pedindo um delegate que nunca responde. Liga com o delegate.
+        val addonsSemAssinatura = BuildConfig.MOBI_ALLOW_UNSIGNED_ADDONS && !skipAddonConfig
+        if (addonsSemAssinatura && BuildConfig.GECKOVIEW_CHANNEL == "release") {
+            // O canal estável ignora xpinstall.signatures.required (preferência bloqueada fora de
+            // build não-oficial). Escrever o arquivo não liberava nada e dava ao motor mais um
+            // caminho para reclamar no início, então só o escrevemos onde ele muda algo.
+            MobiLog.i(SCOPE, "canal release: sem YAML de assinatura; extensões convertidas rodam pela ponte")
+        } else if (addonsSemAssinatura) {
             debugConfigPath()?.let { path -> builder.configFilePath(path) }
         }
         return builder.build()
@@ -85,8 +108,6 @@ class GeckoEngine(context: Context) {
             append("prefs:\n")
             // Add-on sem assinatura: os pacotes que convertemos do Chrome Web Store.
             append("  xpinstall.signatures.required: false\n")
-            // Sem isso, o check de versão mínima derruba a extensão convertida.
-            append("  extensions.langpacks.min_compatible_version: false\n")
             // Nada de buscar update na AMO: nossos pacotes não existem lá e um update
             // substituiria a conversão que acabamos de fazer.
             append("  extensions.getAddons.cache.enabled: false\n")
@@ -125,6 +146,12 @@ class GeckoEngine(context: Context) {
             )
             .suspendMediaWhenInactive(true)
             .build()
+        // Abrir sessão é a primeira prova de que o motor respondeu; só então o STARTING vira
+        // READY. Sem isso, um runtime criado mas surdo na primeira sessão contaria como vivo.
+        if (!readyMarked) {
+            readyMarked = true
+            EngineGuard.markReady(appContext)
+        }
         return GeckoSession(settings)
     }
 

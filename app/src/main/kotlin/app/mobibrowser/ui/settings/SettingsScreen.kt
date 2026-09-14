@@ -156,6 +156,13 @@ fun SettingsScreen(vm: MobiViewModel, onDismiss: () -> Unit) {
             SectionHeader("Busca e início")
             Column(Modifier.padding(horizontal = 20.dp)) {
                 Text(stringResource(R.string.settings_engine), style = MaterialTheme.typography.labelLarge)
+                SwitchRow(
+                    title = "Desligar o motor (diagnóstico)",
+                    subtitle = "Reinicia o app sem criar GeckoRuntime. Se ele continuar fechando " +
+                        "sozinho assim, a culpa não é do motor — e é isso que preciso saber.",
+                    checked = vm.engineOff,
+                    onCheckedChange = { vm.setEngineOff(it) },
+                )
                 Spacer(Modifier.height(6.dp))
                 SearchEngine.entries.forEach { engine ->
                     Row(
