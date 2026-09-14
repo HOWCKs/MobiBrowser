@@ -4,7 +4,6 @@ import android.app.ActivityManager
 import android.app.ApplicationExitInfo
 import android.content.Context
 import android.os.Build
-import android.os.Process
 import java.io.BufferedReader
 import java.io.File
 import java.io.FileOutputStream
@@ -48,7 +47,7 @@ object Diag {
     @Volatile
     private var running = false
 
-    private var pump: Process? = null
+    private var pump: java.lang.Process? = null
     private var heart: Thread? = null
     private val stamp = SimpleDateFormat("HH:mm:ss.SSS", Locale.US)
 
@@ -127,11 +126,11 @@ object Diag {
         val text = records.joinToString("\n\n") { info ->
             DiagText.format(
                 DiagText.ExitRecord(
-                    timestamp = info.importanceReasonTimestampMs,
+                    timestamp = info.timestamp,
                     pid = info.pid,
                     reason = reasonName(info.reason),
                     subReason = subReasonName(info),
-                    importance = importanceName(info.importanceReasonImportance),
+                    importance = importanceName(info.importance),
                     description = info.description.orEmpty(),
                     status = info.status,
                     pssMb = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) info.pss / 1024 else -1,
@@ -152,50 +151,39 @@ object Diag {
         runCatching { exitsFile(context).writeText(text) }
     }
 
-    private fun readTrace(info: ApplicationExitInfo): String = runCatching {
-        info.traceStream.bufferedReader().use { it.readText() }.let { raw ->
-            // O começo do tombstone diz o sinal e a mensagem de abort; o fim costuma ter as
-            // pilhas. Mostro os dois, cortando o meio, que é registro de mapas de memória.
-            DiagText.compactTrace(raw, TRACE_TAIL_CHARS)
+    // O nome deste getter mudou entre as versões (getTraceInputStream até o 13, traceFile como
+    // fonte única depois), e errar aqui custaria a única linha que explica um SIGSEGV. Então:
+    // arquivo primeiro, stream por reflexão como rede de segurança, e os dois fora do caminho
+    // crítico — se nada funcionar, o restante do relatório continua de pé.
+    private fun readTrace(info: ApplicationExitInfo): String {
+        var raw = runCatching { info.traceFile?.readText() }.getOrNull().orEmpty()
+        if (raw.isBlank()) {
+            raw = runCatching {
+                val open = ApplicationExitInfo::class.java.getMethod("getTraceInputStream")
+                (open.invoke(info) as? java.io.InputStream)?.use { it.readBytes().decodeToString() }.orEmpty()
+            }.getOrNull().orEmpty()
+        }
+        // O começo do tombstone traz o sinal e a mensagem de abort; o fim traz as pilhas. Mostro
+        // os dois e corto o meio, que é despejo de mapas de memória.
+        return DiagText.compactTrace(raw, TRACE_TAIL_CHARS)
+    }
+
+    private fun subReasonName(info: ApplicationExitInfo): String = runCatching {
+        val code = ApplicationExitInfo::class.java.getMethod("getSubReason").invoke(info) as Int
+        // 0 = SUBREASON_UNKNOWN: sem submotivo não há o que dizer, então não invento linha.
+        if (code == 0) "" else {
+            val label = runCatching {
+                ApplicationExitInfo::class.java
+                    .getMethod("subreasonToString", Int::class.javaPrimitiveType)
+                    .invoke(null, code) as? String
+            }.getOrNull()
+            label?.takeIf { it.isNotBlank() && !it.equals("UNKNOWN", true) } ?: "submotivo $code"
         }
     }.getOrDefault("")
-
-    private fun reasonName(reason: Int): String = when (reason) {
-        ApplicationExitInfo.REASON_EXIT_SELF -> "saída pedida pelo próprio app"
-        ApplicationExitInfo.REASON_SIGNALED -> "morto por sinal (nativo; abort ou kill)"
-        ApplicationExitInfo.REASON_LOW_MEMORY -> "baixa memória: o sistema escolheu este processo"
-        ApplicationExitInfo.REASON_CRASH -> "exceção Java não tratada"
-        ApplicationExitInfo.REASON_CRASH_NATIVE -> "crash nativo (pilha em código C/C++)"
-        ApplicationExitInfo.REASON_ANR -> "ANR (app não respondeu)"
-        ApplicationExitInfo.REASON_INITIALIZATION_FAILURE -> "falha de inicialização"
-        ApplicationExitInfo.REASON_PERMISSION_CHANGE -> "mudança de permissão"
-        ApplicationExitInfo.REASON_EXCESSIVE_RESOURCE_USAGE -> "uso excessivo de recurso"
-        ApplicationExitInfo.REASON_USER_REQUESTED -> "pedido do usuário (forçar parada / limpar)"
-        ApplicationExitInfo.REASON_USER_STOPPED -> "parado pelo usuário"
-        ApplicationExitInfo.REASON_DEPENDENCY_DIED -> "processo de que dependíamos morreu"
-        ApplicationExitInfo.REASON_FREEZER -> "congelado e encerrado pelo sistema"
-        ApplicationExitInfo.REASON_PACKAGE_STATE_CHANGE -> "mudança de estado do pacote"
-        ApplicationExitInfo.REASON_PACKAGE_UPDATED -> "pacote atualizado"
-        else -> "motivo $reason"
-    }
-
-    private fun subReasonName(info: ApplicationExitInfo): String = if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
-        ""
-    } else {
-        runCatching {
-            when (info.importanceReasonCode) {
-                ActivityManager.RunningAppProcessInfo.REASON_INVALIDATE_OPS -> "REASON_INVALIDATE_OPS"
-                ActivityManager.RunningAppProcessInfo.REASON_CHANGE_CACHED_CAP -> "REASON_CHANGE_CACHED_CAP"
-                ActivityManager.RunningAppProcessInfo.REASON_REMOVE_CACHED_APP_LIMIT -> "REMOVE_CACHED_APP_LIMIT"
-                else -> "sub-motivo ${info.importanceReasonCode}"
-            }
-        }.getOrDefault("")
-    }
 
     private fun importanceName(importance: Int): String = when (importance) {
         ActivityManager.RunningAppProcessInfo.IMPORTANCE_CACHED -> "cacheado em segundo plano"
         ActivityManager.RunningAppProcessInfo.IMPORTANCE_SERVICE -> "serviço"
-        ActivityManager.RunningAppProcessInfo.IMPORTANCE_TRANSIENT -> "transitório"
         ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND_SERVICE -> "serviço em primeiro plano"
         ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND -> "primeiro plano"
         ActivityManager.RunningAppProcessInfo.IMPORTANCE_VISIBLE -> "visível"
@@ -210,7 +198,7 @@ object Diag {
         val file = logcatFile(context)
         runCatching { if (file.length() > MAX_LOGCAT_BYTES) file.delete() }
         val builder = ProcessBuilder(
-            "logcat", "-v", "threadtime", "--pid", Process.myPid().toString(),
+            "logcat", "-v", "threadtime", "--pid", android.os.Process.myPid().toString(),
         ).redirectErrorStream(true)
         val process = builder.start()
         pump = process
@@ -300,7 +288,7 @@ object Diag {
         appendLine()
         appendLine("==== logcat da sessão (últimas 90 linhas) ====")
         appendLine(
-            read(logcatFile(context)).lineSequence().takeLast(90).joinToString("\n"),
+            read(logcatFile(context)).lineSequence().toList().takeLast(90).joinToString("\n"),
         )
     }
 
