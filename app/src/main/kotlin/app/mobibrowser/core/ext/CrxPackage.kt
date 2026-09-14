@@ -29,7 +29,13 @@ object CrxPackage {
 
     /** Aceita .crx (v2 ou v3) ou .zip/.xpi já empacotado. */
     fun extract(bytes: ByteArray): Unpacked {
-        if (!looksLikeCrx(bytes)) return Unpacked(bytes, 0)
+        if (!looksLikeCrx(bytes)) {
+            // Começa com Cr24 mas é curto para ter cabeçalho: pacote truncado, não um ZIP.
+            if (bytes.size >= 4 && String(bytes, 0, 4, Charsets.ISO_8859_1) == MAGIC) {
+                error("Pacote CRX truncado (${bytes.size} bytes) — o download quebrou no meio.")
+            }
+            return Unpacked(bytes, 0)
+        }
 
         // little-endian, como no formato original
         fun le32(at: Int): Int =
@@ -46,7 +52,9 @@ object CrxPackage {
                 16 + pubKeyLen + sigLen
             }
 
-            3 -> 8 + le32(8)
+            // O envelope tem 12 bytes antes do header: Cr24(4) + versão(4) + tamanho(4).
+            // Com 8, o payload começava 4 bytes antes e o ZIP vinha corrompido.
+            3 -> 12 + le32(8)
             else -> error("Versão CRX não suportada: $version")
         }
         require(payloadStart in 0 until bytes.size) { "Cabeçalho CRX fora do arquivo" }
@@ -104,7 +112,10 @@ object CrxPackage {
 
     /** Nome curto e estável a partir do id/slack da extensão, para exibição e arquivos. */
     fun safeFileName(name: String): String =
-        name.lowercase()
+        java.text.Normalizer.normalize(name, java.text.Normalizer.Form.NFD)
+            .replace(Regex("\\p{Mn}+"), "") // ã vira a, ç vira c — sem isso o acento era hífen
+            .replace(Regex("([a-z0-9])([A-Z])"), "$1-$2") // uBlock -> u-Block, legível no nome
+            .lowercase()
             .replace(Regex("[^a-z0-9]+"), "-")
             .trim('-')
             .take(40)

@@ -125,7 +125,7 @@ class CrxPackageTest {
     @Test
     fun `nome de arquivo e higienizado`() {
         assertEquals("u-block-origin", CrxPackage.safeFileName("uBlock Origin"))
-        assertEquals("extensao-2", CrxPackage.safeFileName("  Extensã@ 2  "))
+        assertEquals("extensao-2", CrxPackage.safeFileName("  Extensão 2  "))
         assertEquals("extensao", CrxPackage.safeFileName("!!!"))
     }
 }

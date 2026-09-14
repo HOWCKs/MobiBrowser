@@ -140,7 +140,18 @@ def main() -> int:
 
             match = TEST_FAILED.match(line)
             if match:
-                tests.append(f"{match.group('cls')} > {match.group('test')}")
+                name = f"{match.group('cls').split('.')[-1]} > {match.group('test')}"
+                # O que faz o teste falhar mora nas linhas seguintes (ComparisonFailure traz
+                # expected/actual); sem isso a anotação diz "qual" mas não "por quê".
+                detail = []
+                for nxt in lines[index + 1 : index + 7]:
+                    if TEST_FAILED.match(nxt) or nxt.startswith("> Task "):
+                        break
+                    if re.match(r"^(org\.junit|java\.lang|junit\.|expected:|at app\.mobibrowser)", nxt):
+                        detail.append(nxt.strip()[:150])
+                    if len(detail) >= 3:
+                        break
+                tests.append(name + ((": " + " | ".join(detail)) if detail else ""))
                 continue
 
             match = TASK_FAILED.match(line)
