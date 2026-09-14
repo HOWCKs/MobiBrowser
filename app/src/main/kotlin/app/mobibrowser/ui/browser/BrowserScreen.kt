@@ -218,18 +218,25 @@ fun BrowserScreen(
             // de anexar/desanexar sessão. Toda a classe de bug que já custou tempo aqui mora em
             // soltar e prender GeckoSession; com o véu, a aba existe, a sessão existe, e nada
             // precisa ser desmontado quando a pessoa digita um endereço.
-            AnimatedVisibility(
-                visible = state != null && state.url.isBlank(),
-                enter = fadeIn(tween(200)),
-                exit = fadeOut(tween(140)),
-                modifier = Modifier.matchParentSize(),
-            ) {
-                StartScreen(
-                    vm = vm,
-                    refreshKey = state?.url.orEmpty() + "|" + (state?.title.orEmpty()),
-                    onOpenExtensions = { vm.openExtensions() },
-                    onOpenSettings = { vm.show(app.mobibrowser.ui.Overlay.SETTINGS) },
-                )
+            // Embrulho em Column de propósito: `AnimatedVisibility` só existe como extensão de
+            // ColumnScope/RowScope, e este conteúdo é um Box — o mesmo motivo do embrulho do
+            // CrashCard mais abaixo. E `state` é propriedade delegada, então o teste de nulo precisa
+            // de uma cópia local para virar String/URL acessível sem smart cast.
+            val ui = state
+            Column(Modifier.matchParentSize()) {
+                AnimatedVisibility(
+                    visible = ui != null && ui.url.isBlank(),
+                    enter = fadeIn(tween(200)),
+                    exit = fadeOut(tween(140)),
+                ) {
+                    StartScreen(
+                        vm = vm,
+                        refreshKey = ui?.url.orEmpty() + "|" + (ui?.title.orEmpty()),
+                        onOpenExtensions = { vm.openExtensions() },
+                        onOpenSettings = { vm.show(app.mobibrowser.ui.Overlay.SETTINGS) },
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                }
             }
 
             // Column de embrulho: AnimatedVisibility é extensão de ColumnScope e o Kotlin não

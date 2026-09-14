@@ -168,7 +168,7 @@ object Diag {
     // Um encerramento é acaso; quatro do mesmo tipo em meia hora é estado. A contagem sai antes
     // do texto longo de propósito: é a primeira linha do aviso na tela, e quem abriu o app dez
     // vezes seguidas precisa ver o padrão, não só o último caso.
-    private fun tallyRecent(records: Array<out ApplicationExitInfo>): String? {
+    private fun tallyRecent(records: List<ApplicationExitInfo>): String? {
         val since = System.currentTimeMillis() - DAY_MS
         val recent = runCatching { records.filter { it.timestamp >= since } }.getOrDefault(emptyList())
         if (recent.isEmpty()) return null

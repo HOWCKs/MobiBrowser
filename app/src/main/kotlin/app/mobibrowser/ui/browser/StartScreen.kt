@@ -226,7 +226,10 @@ fun StartScreen(
         }
 
         // ---------------------------------------------------------- aviso de sessão anterior
-        if (notice != null) {
+        // `notice` vem de `by vm.startNotice...` (propriedade delegada): o compilador não faz smart
+        // cast dela dentro do bloco, e o `Text(notice)` pedia String não-nula. Cópia local resolve.
+        val noticeText = notice
+        if (noticeText != null) {
             Spacer(Modifier.height(16.dp))
             Card(
                 modifier = Modifier
@@ -253,7 +256,7 @@ fun StartScreen(
                     }
                     Spacer(Modifier.height(8.dp))
                     Text(
-                        notice,
+                        noticeText,
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onTertiaryContainer,
                     )

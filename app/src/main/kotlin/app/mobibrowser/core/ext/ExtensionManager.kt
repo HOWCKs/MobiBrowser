@@ -368,7 +368,9 @@ class ExtensionManager(
         step("Baixando a extensão…")
         val staging = newStaging("dl-$storeId")
         val crx = File(staging, "package.crx")
-        try {
+        // `return` explícito: com corpo em chaves, o último valor de um `try` não é o resultado da
+        // função — e aqui o `finally` apaga a pasta de trabalho, o que torna o try/finally obrigatório.
+        return try {
             store.downloadCrx(storeId, crx)
             val summary = store.fetchSummary(storeId)
             installPackage(
