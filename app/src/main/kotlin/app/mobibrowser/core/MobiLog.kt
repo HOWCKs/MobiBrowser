@@ -48,17 +48,29 @@ object MobiLog {
     /** Chamar na primeira linha do `Application.onCreate`, antes de qualquer outra camada. */
     fun attach(context: Context) {
         startedAt = System.currentTimeMillis()
-        val dir = File(context.getExternalFilesDir(null) ?: context.filesDir, "logs")
+        // Os três arquivos em `Android/data/<pacote>/files/logs`, não em filesDir. Motivo prático,
+        // e é o motivo pelo qual este app precisa de log sem `adb`: filesDir é ilegível para
+        // qualquer gerenciador de arquivos ou editor no aparelho sem root, e o diretório externo do
+        // próprio app não é. Se o caminho externo falhar (perfil de trabalho, armazenamento cheio),
+        // o privado entra como último recurso — perder o log seria perder a única evidência.
+        val dir = logsDir(context)
         val file = File(dir, "mobibrowser-log.txt")
-        crashFile = File(context.filesDir, CRASH_FILE)
-        errFile = File(context.filesDir, ERRORS_FILE)
+        crashFile = File(dir, CRASH_FILE)
+        errFile = File(dir, ERRORS_FILE)
         runCatching {
-            dir.mkdirs()
             if (file.exists() && file.length() > MAX_FILE_BYTES) file.delete()
             writer = PrintWriter(FileOutputStream(file, true), true)
             logFile = file
         }.onFailure { Log.w(TAG, "sem arquivo de log: ${it.message}") }
         i("app", "──── sessão ${stamp.format(Date(startedAt))} ────")
+    }
+
+    /** Onde os `.txt` vivem; exposto porque a UI precisa dizer o caminho certo para a pessoa. */
+    fun logsDir(context: Context): File {
+        val external = runCatching { context.getExternalFilesDir(null) }.getOrNull()
+        val base = File(external ?: context.filesDir, "logs")
+        runCatching { base.mkdirs() }
+        return if (base.isDirectory) base else File(context.filesDir, "logs").apply { mkdirs() }
     }
 
     /**
@@ -109,8 +121,14 @@ object MobiLog {
      * cicatriz permanente na primeira tela.
      */
     fun takePendingCrash(context: Context): String? {
-        val file = crashFile ?: File(context.filesDir, CRASH_FILE)
-        if (!file.isFile) return null
+        // O caminho mudou para o diretório externo nesta versão. Ler também o antigo é de propósito:
+        // quem tinha uma pilha gravada pela versão anterior continuaria sem ver o aviso, e o
+        // arquivo parado na pasta antiga nunca seria apagado por ninguém.
+        val candidates = listOfNotNull(
+            crashFile,
+            File(context.filesDir, CRASH_FILE),
+        ).distinctBy { it.absolutePath }
+        val file = candidates.firstOrNull { it.isFile } ?: return null
         val text = runCatching { file.readText() }.getOrNull()
         runCatching { file.delete() }
         return text?.takeIf { it.isNotBlank() }

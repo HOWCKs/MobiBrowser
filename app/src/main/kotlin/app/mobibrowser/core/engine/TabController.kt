@@ -149,8 +149,9 @@ class TabController(
         Diag.at("abas:restaurar ${urls.size}")
         urls.forEach { url -> create(url, isPrivate = false, select = false, desktop = desktopByDefault) }
         if (_tabs.value.isEmpty()) {
-            val home = prefs.homepage()
-            create(home, isPrivate = false, select = true)
+            // Aba vazia, não a página inicial: quem abre o navegador quer a tela de início
+            // (busca + atalhos), e o motor só é chamado se a pessoa escolher um destino.
+            create("", isPrivate = false, select = true)
             return RestoreResult(createdHome = true)
         }
         // A aba ativa é parte da restauração, não um detalhe. `create(select = false)` acima

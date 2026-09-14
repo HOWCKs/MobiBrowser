@@ -34,7 +34,7 @@ import kotlinx.coroutines.launch
 
 /** Telas em overlay sobre a navegação. Uma única fonte de verdade para o back stack. */
 @Immutable
-enum class Overlay { NONE, TABS, EXTENSIONS, USERSCRIPTS, SETTINGS, HISTORY, BOOKMARKS, FIRST_RUN }
+enum class Overlay { NONE, TABS, EXTENSIONS, USERSCRIPTS, SETTINGS, HISTORY, BOOKMARKS, FIRST_RUN, DEV }
 
 data class SnackbarMessage(val text: String, val actionLabel: String? = null)
 
@@ -77,8 +77,29 @@ class MobiViewModel(application: Application) : AndroidViewModel(application) {
      * deixou. Vive na ViewModel e não em Settings → Sobre porque o aviso precisa aparecer antes
      * de a pessoa ter de navegar até algum lugar — e antes de um próximo crash.
      */
-    private val _crashNotice = MutableStateFlow(app.pendingCrash)
+    /** Pilha de exceção Java capturada na sessão anterior: é a única que merece um diálogo. */
+    private val _crashNotice = MutableStateFlow(app.javaCrash)
     val crashNotice: StateFlow<String?> = _crashNotice.asStateFlow()
+
+    /**
+     * O aviso em linguagem simples (o que o sistema registrou + o que o guarda do motor decidiu).
+     * Mora na tela de início e não numa janela modal: quem acabou de ver o app fechar não precisa
+     * de outra coisa para fechar antes de conseguir tocar em algo.
+     */
+    private val _startNotice = MutableStateFlow(app.softNotice)
+    val startNotice: StateFlow<String?> = _startNotice.asStateFlow()
+
+    fun dismissStartNotice() {
+        _startNotice.value = null
+    }
+
+    /** Tela com o que é desenvolvimento: motores, versão, diagnóstico, atualizar. */
+    fun showDevScreen() {
+        _overlay.value = Overlay.DEV
+    }
+
+    /** Barra fina na tela de início enquanto o processo do motor nasce de verdade. */
+    fun busyAtStart(): Boolean = app.engine.creating
 
     fun dismissCrashNotice() {
         _crashNotice.value = null
@@ -145,9 +166,40 @@ class MobiViewModel(application: Application) : AndroidViewModel(application) {
         tabs.create(url = url, isPrivate = privateMode)
     }
 
+    /**
+     * Nova aba abre a tela de início, vazia — não a página inicial.
+     *
+     * É o pedido do usuário e é também a resposta para o fechamento: com a aba nascendo vazia, o
+     * processo do motor só é convocado quando a pessoa escolhe um atalho ou digita, e a tela de
+     * início é Compose puro. Se o `GeckoRuntime` abortar, quem aborta é uma aba que ainda não
+     * mostrou nada, e não a primeira coisa que a pessoa vê.
+     */
     fun newTab(privateMode: Boolean = tabs.selectedIsPrivate()) {
-        if (engineOffNotice()) return
-        tabs.create(url = settings.value.homepage, isPrivate = privateMode)
+        tabs.create(url = "", isPrivate = privateMode)
+    }
+
+    /**
+     * Atalhos da tela de início: os endereços que a pessoa mais visita, do histórico local.
+     * Lidos em IO de propósito — SQLite na main thread durante o primeiro frame é exatamente o
+     * tipo de latência que já foi confundida com travamento neste app.
+     */
+    suspend fun startShortcutsOnIo(limit: Int = 6): List<app.mobibrowser.data.HistoryEntry> =
+        kotlinx.coroutines.withContext(Dispatchers.IO) {
+            runCatching { db.topSites(limit) }.getOrDefault(emptyList())
+        }
+
+    /** "Retomar de onde parei" — as visitas mais recentes, sem duplicar o atalho mais usado. */
+    suspend fun startRecentOnIo(limit: Int = 4): List<app.mobibrowser.data.HistoryEntry> =
+        kotlinx.coroutines.withContext(Dispatchers.IO) {
+            runCatching { db.recentHistory(limit * 3) }.getOrDefault(emptyList())
+                .distinctBy { it.url.substringBefore('#') }
+                .take(limit)
+        }
+
+    /** Página inicial escolhida em Ajustes (usada pelo botão de início e pelo atalho fixo). */
+    fun goHome() {
+        val home = settings.value.homepage.trim()
+        if (home.isNotEmpty()) openUrl(home)
     }
 
     fun closeTab(id: String) = tabs.close(id)

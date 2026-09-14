@@ -1,32 +1,36 @@
 package app.mobibrowser.ui.settings
 
-import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.DarkMode
-import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.DeveloperMode
 import androidx.compose.material.icons.filled.Palette
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Shield
-import androidx.compose.material.icons.filled.TravelExplore
-import androidx.compose.material3.Button
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
@@ -34,7 +38,6 @@ import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.AlertDialog
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -42,27 +45,32 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import app.mobibrowser.BuildConfig
 import app.mobibrowser.R
 import app.mobibrowser.data.SearchEngine
 import app.mobibrowser.data.ThemeMode
 import app.mobibrowser.ui.MobiViewModel
-import app.mobibrowser.core.Diag
-import app.mobibrowser.core.MobiLog
-import app.mobibrowser.core.update.UpdateManager
-import app.mobibrowser.ui.common.InfoRow
 import app.mobibrowser.ui.common.SectionHeader
 import app.mobibrowser.ui.common.SwitchRow
 
+/**
+ * Ajustes, do ponto de vista de quem usa o navegador: aparência, privacidade, busca e dados.
+ *
+ * Nada aqui fala de motor, canal, assinatura ou YAML — a versão anterior desta tela tinha
+ * subtítulo técnico embaixo de cada interruptor e um cartão de diagnóstico no meio da tela. O que
+ * é de desenvolvimento mudou para [DevScreen], alcançada pelo ícone no fim da lista: continua
+ * acessível para quem precisa, some para quem não precisa.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(vm: MobiViewModel, onDismiss: () -> Unit) {
     val settings by vm.settings.collectAsStateWithLifecycle()
     var confirmClear by remember { mutableStateOf(false) }
     var homepageDraft by remember { mutableStateOf(settings.homepage) }
+    var homepageSaved by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -107,14 +115,14 @@ fun SettingsScreen(vm: MobiViewModel, onDismiss: () -> Unit) {
             Spacer(Modifier.height(8.dp))
             SwitchRow(
                 title = stringResource(R.string.settings_dynamic_color),
-                subtitle = "Material You: cores extraídas do papel de parede",
+                subtitle = "Cores do app tiradas do papel de parede",
                 checked = settings.dynamicColor,
                 onCheckedChange = vm::setDynamicColor,
                 leadingIcon = Icons.Default.Palette,
             )
             SwitchRow(
                 title = stringResource(R.string.settings_expressive),
-                subtitle = "Molas e overshoot nas transições de barra e folha",
+                subtitle = "Animações com mola ao abrir telas e esconder barras",
                 checked = settings.expressiveMotion,
                 onCheckedChange = vm::setExpressive,
                 leadingIcon = Icons.Default.DarkMode,
@@ -123,56 +131,48 @@ fun SettingsScreen(vm: MobiViewModel, onDismiss: () -> Unit) {
             SectionHeader(stringResource(R.string.settings_privacy))
             SwitchRow(
                 title = stringResource(R.string.settings_tracking_protection),
-                subtitle = "Bloqueio de rastreadores por aba (ETP do motor)",
+                subtitle = "Bloqueia rastreadores em todas as abas novas",
                 checked = settings.trackingProtectionDefault,
                 onCheckedChange = { vm.setTrackingProtectionDefault(it) },
                 leadingIcon = Icons.Default.Shield,
             )
             SwitchRow(
-                title = "Enviar sinal de privacidade (GPC)",
-                subtitle = "Sucessor do \"Do Not Track\"; aplicado pelo motor no próximo início",
+                title = "Pedir para não vender meus dados",
+                subtitle = "Aviso enviado aos sites (o antigo \"não me rastreie\"). Vale para as " +
+                    "próximas páginas que você abrir.",
                 checked = settings.globalPrivacyControl,
                 onCheckedChange = vm::setGlobalPrivacyControl,
-            )
-            SwitchRow(
-                title = "MobiBridge (ponte de extensões)",
-                subtitle = "Necessária para user scripts e modo compatibilidade",
-                checked = settings.bridgeEnabled,
-                onCheckedChange = vm::setBridgeEnabled,
-                leadingIcon = Icons.Default.TravelExplore,
+                leadingIcon = Icons.Default.Visibility,
             )
             SwitchRow(
                 title = stringResource(R.string.userscripts_title),
-                subtitle = "Permite injetar seus scripts e estilos nas páginas",
+                subtitle = "Permite que seus próprios scripts e estilos entrem nas páginas",
                 checked = settings.userscriptsEnabled,
                 onCheckedChange = vm::setUserscriptsEnabled,
-            )
-            SwitchRow(
-                title = "Bloqueio por regras (declarativeNetRequest)",
-                subtitle = "Regras extraídas de pacotes convertidos, aplicadas pelo motor",
-                checked = settings.dnrEnabled,
-                onCheckedChange = vm::setDnrEnabled,
             )
 
             SectionHeader("Busca e início")
             Column(Modifier.padding(horizontal = 20.dp)) {
-                Text(stringResource(R.string.settings_engine), style = MaterialTheme.typography.labelLarge)
-                SwitchRow(
-                    title = "Desligar o motor (diagnóstico)",
-                    subtitle = "Reinicia o app sem criar GeckoRuntime. Se ele continuar fechando " +
-                        "sozinho assim, a culpa não é do motor — e é isso que preciso saber.",
-                    checked = vm.engineOff,
-                    onCheckedChange = { vm.setEngineOff(it) },
-                )
-                Spacer(Modifier.height(6.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        Icons.Default.Search,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp),
+                        tint = MaterialTheme.colorScheme.primary,
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text(stringResource(R.string.settings_engine), style = MaterialTheme.typography.labelLarge)
+                }
                 SearchEngine.entries.forEach { engine ->
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier
                             .fillMaxWidth()
+                            .clip(MaterialTheme.shapes.small)
+                            .clickable { vm.setSearchEngine(engine) }
                             .padding(vertical = 6.dp),
                     ) {
-                        androidx.compose.material3.RadioButton(
+                        RadioButton(
                             selected = settings.searchEngine == engine,
                             onClick = { vm.setSearchEngine(engine) },
                         )
@@ -180,176 +180,128 @@ fun SettingsScreen(vm: MobiViewModel, onDismiss: () -> Unit) {
                         Column(Modifier.weight(1f)) {
                             Text(engine.label, style = MaterialTheme.typography.bodyLarge)
                             Text(
-                                engine.url.substringBefore("?"),
+                                "Pesquisa por: ${engine.url.substringBefore("?").removePrefix("https://")}",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
                     }
                 }
-                Spacer(Modifier.height(10.dp))
+                Spacer(Modifier.height(12.dp))
                 OutlinedTextField(
                     value = homepageDraft,
-                    onValueChange = { homepageDraft = it },
-                    label = { Text("Página inicial") },
+                    onValueChange = {
+                        homepageDraft = it
+                        homepageSaved = false
+                    },
+                    label = { Text("Endereço do botão de início") },
                     singleLine = true,
+                    shape = MaterialTheme.shapes.large,
                     modifier = Modifier.fillMaxWidth(),
-                    supportingText = { Text("Usada ao abrir a primeira aba e o botão de início") },
+                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                        imeAction = androidx.compose.ui.text.input.ImeAction.Done,
+                        keyboardType = androidx.compose.ui.text.input.KeyboardType.Uri,
+                    ),
                 )
-                TextButton(onClick = { vm.setHomepage(homepageDraft) }) {
-                    Text(stringResource(R.string.userscripts_save))
-                }
+                Spacer(Modifier.height(10.dp))
+                OutlinedButton(
+                    onClick = {
+                        vm.setHomepage(homepageDraft)
+                        homepageSaved = true
+                    },
+                    shape = MaterialTheme.shapes.extraLarge,
+                ) { Text("Salvar endereço") }
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    if (homepageSaved) {
+                        "Anotado. Este endereço abre no botão de início; a tela de início continua " +
+                            "a primeira coisa que você vê."
+                    } else {
+                        "Endereço aberto quando você toca na casinha. O que aparece ao abrir o app " +
+                            "é a tela de início, com a busca e os seus atalhos."
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
 
             SectionHeader("Dados")
             Card(
+                shape = MaterialTheme.shapes.extraLarge,
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 20.dp),
+                    .padding(horizontal = 16.dp, vertical = 4.dp),
             ) {
                 Column(Modifier.padding(vertical = 10.dp)) {
-                    InfoRow("Histórico", "${vm.historyCount()} itens")
-                    InfoRow("Motor", "GeckoView ${BuildConfig.GECKOVIEW_VERSION}")
-                    InfoRow(
-                        "Canal",
-                        if (BuildConfig.MOBI_ALLOW_UNSIGNED_ADDONS) {
-                            "${BuildConfig.GECKOVIEW_CHANNEL} · aceita pacote sem assinatura"
-                        } else {
-                            "${BuildConfig.GECKOVIEW_CHANNEL} · só pacote assinado"
-                        },
-                    )
-                    InfoRow("Compilação", "${BuildConfig.VERSION_NAME} (${BuildConfig.GIT_SHA})")
-
-                    val ctx = androidx.compose.ui.platform.LocalContext.current
-                    // --- atualização do canal instável -------------------------------------
-                    // Sem consulta automática no boot: um pedido ao GitHub a cada abertura do
-                    // app contaria instalação para um terceiro, o que briga com a proposta do
-                    // navegador. O preço é óbvio — o update só é oferecido quando se pede.
-                    val update = vm.updateStatus.collectAsStateWithLifecycle().value
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 4.dp),
-                        verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+                            .padding(horizontal = 20.dp),
+                        verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Text(
-                            text = when (update) {
-                                is UpdateManager.Status.Checking -> "Consultando o canal no GitHub…"
-                                is UpdateManager.Status.UpToDate ->
-                                    "Este já é o build mais novo do canal (" + BuildConfig.GIT_SHA + ")."
-                                is UpdateManager.Status.Available ->
-                                    "Novo build " + update.sha + ", de " + update.publishedAt +
-                                        " · " + (update.bytes / 1048576) + " MB"
-                                is UpdateManager.Status.Downloading ->
-                                    "Baixando o instalador… " + update.percent + "%"
-                                is UpdateManager.Status.Ready ->
-                                    "Instalador pronto (" + (update.bytes / 1048576) +
-                                        " MB). O sistema ainda pede confirmação antes de instalar."
-                                is UpdateManager.Status.Failed ->
-                                    "Não deu para verificar: " + update.message
-                                UpdateManager.Status.Idle ->
-                                    "Uma chamada ao GitHub, só quando você toca."
-                            },
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            "Histórico neste aparelho",
+                            style = MaterialTheme.typography.bodyLarge,
                             modifier = Modifier.weight(1f),
                         )
-                        Spacer(Modifier.width(8.dp))
-                        when (update) {
-                            is UpdateManager.Status.Available -> Button(onClick = { vm.downloadUpdate() }) {
-                                Text("Baixar")
-                            }
-
-                            is UpdateManager.Status.Ready -> Button(onClick = {
-                                (ctx as? android.app.Activity)?.let { vm.installUpdate(it) }
-                            }) {
-                                Text("Instalar")
-                            }
-
-                            is UpdateManager.Status.Downloading -> Unit
-
-                            else -> TextButton(
-                                enabled = update !is UpdateManager.Status.Checking,
-                                onClick = { vm.checkUpdate() },
-                            ) {
-                                Text(if (update is UpdateManager.Status.Failed) "Tentar de novo" else "Verificar")
-                            }
-                        }
-                    }
-                    if (update is UpdateManager.Status.Downloading) {
-                        androidx.compose.material3.LinearProgressIndicator(
-                            progress = { update.percent / 100f },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 16.dp),
-                        )
-                    }
-                    val clipboard = androidx.compose.ui.platform.LocalClipboardManager.current
-                    var copied by remember { mutableStateOf(false) }
-                    androidx.compose.foundation.layout.Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp),
-                        verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
-                    ) {
                         Text(
-                            text = if (copied) {
-                                "Copiado. Se quiser o texto completo do começo da sessão, ele também" +
-                                    " está em Android/data/${ctx.packageName}/files/logs/mobibrowser-log.txt."
-                            } else {
-                                "Travou ou abriu sem interface? Isto copia a sessão: versão, motor," +
-                                    " aparelho e as últimas linhas antes de parar."
-                            },
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.weight(1f),
+                            "${vm.historyCount()} itens",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.primary,
                         )
-                        androidx.compose.material3.TextButton(onClick = {
-                            clipboard.setText(androidx.compose.ui.text.AnnotatedString(Diag.export(ctx)))
-                            copied = true
-                        }) { Text("Diagnóstico") }
                     }
-                    Spacer(Modifier.height(6.dp))
-                    Button(
+                    Spacer(Modifier.height(12.dp))
+                    OutlinedButton(
                         onClick = { confirmClear = true },
-                        modifier = Modifier.padding(horizontal = 16.dp),
+                        shape = MaterialTheme.shapes.extraLarge,
+                        modifier = Modifier.padding(horizontal = 20.dp),
                     ) { Text(stringResource(R.string.settings_clear_data)) }
                 }
             }
 
-            SectionHeader(stringResource(R.string.settings_about))
-            Card(
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
+            // Sem texto: quem precisa de número de versão e de copiar log procura o ícone, e quem
+            // não precisa não tropeça nele. É a exigência da rodada: informação de desenvolvimento
+            // não é enfeite de vitrine.
+            Spacer(Modifier.height(18.dp))
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 20.dp),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                Row(Modifier.padding(16.dp)) {
-                    Icon(Icons.Default.Info, contentDescription = null)
-                    Spacer(Modifier.width(12.dp))
-                    Text(
-                        "MobiBrowser é um experimento: navegador próprio, Kotlin + Compose Material 3, " +
-                            "com WebExtensions instaladas e convertidas no aparelho. Artefato instável — " +
-                            "abra uma issue no repositório com o que quebrou.",
-                        style = MaterialTheme.typography.bodyMedium,
+                Box(
+                    modifier = Modifier
+                        .size(38.dp)
+                        .clip(MaterialTheme.shapes.small)
+                        .clickable { vm.showDevScreen() },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        Icons.Default.DeveloperMode,
+                        contentDescription = "Modo avançado",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
+                Spacer(Modifier.width(12.dp))
+                TextButton(onClick = { vm.showDevScreen() }) {
+                    Text("Modo avançado")
+                }
             }
-            Spacer(Modifier.height(20.dp))
-            TextButton(
-                onClick = { vm.openUrl("https://github.com/HOWCKs/MobiBrowser") },
-                modifier = Modifier.padding(horizontal = 20.dp),
-            ) { Text("github.com/HOWCKs/MobiBrowser") }
         }
     }
 
     if (confirmClear) {
         AlertDialog(
             onDismissRequest = { confirmClear = false },
+            shape = MaterialTheme.shapes.extraLarge,
+            tonalElevation = 3.dp,
             title = { Text(stringResource(R.string.settings_clear_data)) },
             text = {
-                Text("Apaga histórico, cache e cookies do perfil do motor. Extensões instaladas permanecem.")
+                Text(
+                    "Apaga o histórico, as páginas guardadas e os cookies. As extensões instaladas " +
+                        "continuam aqui.",
+                )
             },
             confirmButton = {
                 TextButton(
@@ -363,4 +315,3 @@ fun SettingsScreen(vm: MobiViewModel, onDismiss: () -> Unit) {
         )
     }
 }
-

@@ -557,9 +557,14 @@ fun ExtensionInstallSheet(
     val summary by vm.storeSummary.collectAsStateWithLifecycle()
     var input by remember { mutableStateOf(vm.storeInstallInput.value.orEmpty()) }
     val storeId = remember(input) { ChromeWebStore.idFrom(input) }
+    // Declarado antes do campo: o texto de apoio logo abaixo já precisa do nome da extensão, e
+    // usar um val declarado mais adiante no mesmo bloco não compila.
+    val item0 = summary?.takeIf { it.id == storeId }
 
     AlertDialog(
         onDismissRequest = onDismiss,
+        shape = MaterialTheme.shapes.extraLarge,
+        tonalElevation = 3.dp,
         title = { Text(stringResource(R.string.extensions_install_store)) },
         text = {
             Column(Modifier.verticalScroll(rememberScrollState())) {
@@ -574,13 +579,18 @@ fun ExtensionInstallSheet(
                     modifier = Modifier.fillMaxWidth(),
                     supportingText = {
                         Text(
-                            if (storeId == null) "Aceita a URL da página do item ou o id de 32 letras." else "id: $storeId",
+                            // Todos os ramos com String não-nula: `Text` não aceita nulo, e um
+                            // `item0.name` solto aqui era erro de compilação.
+                            when {
+                                storeId == null -> "Cole o endereço da página da extensão na loja do Chrome."
+                                else -> item0?.name ?: "Extensão reconhecida."
+                            },
                             style = MaterialTheme.typography.bodySmall,
                         )
                     },
                 )
 
-                summary?.takeIf { it.id == storeId }?.let { item ->
+                item0?.let { item ->
                     Spacer(Modifier.height(12.dp))
                     Surface(
                         shape = MaterialTheme.shapes.large,
@@ -612,9 +622,9 @@ fun ExtensionInstallSheet(
 
                 Spacer(Modifier.height(12.dp))
                 Text(
-                    "O MobiBrowser baixa o pacote da Chrome Web Store, converte o manifest e " +
-                        "tenta instalar no motor. Se o motor recusar o pacote (assinatura), a " +
-                        "extensão é instalada em modo compatibilidade e você é avisado.",
+                    "A extensão é baixada da loja do Chrome e adaptada para abrir aqui. Parte das " +
+                        "funções de algumas extensões não existe neste navegador; se for o caso, " +
+                        "avisamos aqui mesmo e você vê a lista do que ficou de fora.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )

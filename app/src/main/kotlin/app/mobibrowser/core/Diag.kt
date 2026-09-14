@@ -39,10 +39,14 @@ import java.util.Locale
 object Diag {
 
     private const val MAX_LOGCAT_BYTES = 2_000_000L
+    private const val DAY_MS = 24L * 60 * 60 * 1000
     private const val TRACE_TAIL_CHARS = 3_500
 
     @Volatile
     private var phase: String = "nascimento"
+
+    /** A última fase escrita — em caso de morte, é ela que delimita o suspeito. */
+    val lastPhase: String get() = phase
 
     @Volatile
     private var running = false
@@ -58,9 +62,22 @@ object Diag {
      */
     @Volatile
     var lastExit: String? = null
+
+    /** Padrão das últimas 24 h ("3× crash nativo"), para o aviso não depender de um só registro. */
+    @Volatile
+    var exitSummary: String? = null
         private set
 
-    private fun dir(context: Context): File = File(context.filesDir, "diag").apply { mkdirs() }
+    // Externo (Android/data/<pacote>/files/diag) em vez de privado: quem não tem cabo nem root
+    // precisa abrir o arquivo num editor de texto no próprio aparelho, e filesDir está fora de
+    // alcance para isso. Se o caminho externo falhar (perfil de trabalho, armazenamento cheio),
+    // caímos no privado — os coletores têm de funcionar mesmo sem ninguém poder ler.
+    private fun dir(context: Context): File {
+        val external = runCatching { context.getExternalFilesDir(null) }.getOrNull()
+        val base = File(external ?: context.filesDir, "diag")
+        runCatching { base.mkdirs() }
+        return if (base.isDirectory) base else File(context.filesDir, "diag").apply { mkdirs() }
+    }
 
     private fun exitsFile(context: Context) = File(dir(context), "exits.txt")
     private fun liveFile(context: Context) = File(dir(context), "live.txt")
@@ -123,6 +140,7 @@ object Diag {
             writeExits(context, note)
             return
         }
+        exitSummary = tallyRecent(records)
         val text = records.joinToString("\n\n") { info ->
             DiagText.format(
                 DiagText.ExitRecord(
@@ -144,6 +162,22 @@ object Diag {
             appendLine("O sistema registrou este encerramento do processo:")
             appendLine()
             append(text.lineSequence().take(14).joinToString("\n"))
+        }
+    }
+
+    // Um encerramento é acaso; quatro do mesmo tipo em meia hora é estado. A contagem sai antes
+    // do texto longo de propósito: é a primeira linha do aviso na tela, e quem abriu o app dez
+    // vezes seguidas precisa ver o padrão, não só o último caso.
+    private fun tallyRecent(records: Array<out ApplicationExitInfo>): String? {
+        val since = System.currentTimeMillis() - DAY_MS
+        val recent = runCatching { records.filter { it.timestamp >= since } }.getOrDefault(emptyList())
+        if (recent.isEmpty()) return null
+        val byReason = recent.groupingBy { reasonName(it.reason) }.eachCount()
+            .entries.sortedByDescending { it.value }
+        return buildString {
+            append("Nas últimas 24 h o sistema registrou ${recent.size} encerramento(s) deste app: ")
+            append(byReason.joinToString { (motivo, n) -> if (n > 1) "$motivo (×$n)" else motivo })
+            append(".")
         }
     }
 

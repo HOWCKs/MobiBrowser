@@ -227,16 +227,40 @@ keyPassword=…
 
 ## Se o app fechar sozinho
 
-O `EngineGuard` (`core/EngineGuard.kt`) grava em arquivo em que ponto o motor nasceu: `STARTING`
-antes de criar o `GeckoRuntime`, `READY` quando a primeira sessão abre. Se a abertura anterior
-parou no meio, a próxima começa **sem** o motor de extensões e sem o YAML de pacote sem
-assinatura, mostra o aviso na primeira tela e continua navegando. É automático e autolimitado:
-uma abertura limpa reseta o estado.
+Dois mecanismos, e os dois funcionam **sem cabo e sem `adb`** — que é a situação real de quem
+instala o APK pelo gerenciador de arquivos.
 
-Para o caso em que nem isso basta, Configurações → Motor tem **Desligar o motor (diagnóstico)**:
-o app reinicia sem tocar no Gecko. Caindo mesmo assim, a causa não é o motor; não caindo, é.
-Isso existe porque este projeto é testado em aparelho sem `adb` — a alavanca tem de ficar na mão
-de quem instala, não no logcat de quem compila.
+**1. O app grava o próprio encerramento** (`core/Diag.kt`). Um `abort()` nativo não passa por
+handler Java nenhum: nada em memória sobrevive. Então o que existe é escrito *enquanto se está vivo*:
+
+| Arquivo | O que é |
+| --- | --- |
+| `diag/exits.txt` | o motivo de cada encerramento, **registrado pelo Android** (`ApplicationExitInfo`): crash, sinal, baixa memória, ANR, + PSS/RSS + o *trace* (num crash nativo, o tombstone com `Fatal signal` / `Abort message`) |
+| `diag/logcat.txt` | `logcat --pid <próprio pid>` copiado linha a linha, com *flush* por linha — é o único destino onde a última frase antes de um `SIGSEGV` ainda existe quando o processo renasce |
+| `diag/live.txt` | em que ponto do início o app estava, reescrito a cada 500 ms, com heap e RSS |
+| `logs/mobibrowser-errors.txt` | só erros, sem teto de tamanho, atravessando as aberturas |
+| `logs/mobibrowser-crash.txt` | a pilha, quando a morte foi exceção Java |
+
+Ficam em `Android/data/app.mobibrowser.unstable/files/`, legíveis por qualquer gerenciador de
+arquivos ou editor no aparelho (o diretório privado `filesDir` é ilegível sem root, e era por isso
+que o log não chegava em mãos).
+
+**2. O `EngineGuard`** (`core/EngineGuard.kt`) sabe em que ponto o motor nasceu: `STARTING` antes de
+criar o `GeckoRuntime`, `READY` quando a primeira sessão abre. Parou no berço uma vez → a próxima
+abertura começa sem o motor de extensões. Parou **duas vezes seguidas** → além disso, ele apaga o
+que uma morte no meio da inicialização deixa apontando para o processo morto (cadeado do perfil e
+despejos de falha) e diz no aviso o que foi removido. Uma abertura limpa zera a contagem.
+
+O aviso aparece **na tela de início**, em português, com "O que foi feito" levando ao
+**Modo avançado** (o ícone no fim de Ajustes) — onde estão versão, motor, o texto pronto para
+copiar e a alavanca **Desligar o motor de páginas (teste)**: o app reinicia sem tocar no Gecko;
+caindo mesmo assim, a causa não é o motor. A alavanca fica lá, e não no meio dos Ajustes, porque
+é ferramenta de diagnóstico, não escolha de uso.
+
+Desde que a aba nova nasce vazia e a `GeckoSession` é criada **na primeira navegação** (não na
+criação da aba), abrir o app e não navegar não invoca o processo do motor — o que também é teste:
+se alguém conseguir fechar o app *sem* abrir página e o registro do sistema mostrar o motor como
+culpado, algo está errado na minha leitura.
 
 ## Limitações conhecidas
 

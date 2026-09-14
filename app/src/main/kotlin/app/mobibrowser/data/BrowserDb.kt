@@ -106,6 +106,25 @@ class BrowserDb(context: Context) : SQLiteOpenHelper(context.applicationContext,
         )
     }
 
+    /**
+     * Endereços mais visitados, para os atalhos da tela de início. Agrupa por URL porque o
+     * histórico guarda uma linha por visita; `MAX(last_visit)` decide a ordem de empate e deixa o
+     * atalho refletir o que a pessoa usa hoje, não o que usou em 2019.
+     */
+    fun topSites(limit: Int = 8): List<HistoryEntry> =
+        query(
+            """
+            SELECT url, MAX(title) AS title, MAX(last_visit) AS last_visit, SUM(visits) AS visits
+            FROM history
+            WHERE url NOT LIKE 'about:%' AND url NOT LIKE 'chrome://%' AND url NOT LIKE 'resource://%'
+            GROUP BY url
+            ORDER BY visits DESC, last_visit DESC
+            LIMIT ?
+            """.trimIndent(),
+            arrayOf(limit.toString()),
+            ::toHistoryEntry,
+        )
+
     fun recentHistory(limit: Int = 100): List<HistoryEntry> =
         query(
             """

@@ -8,6 +8,7 @@ import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
+import java.io.File
 import org.junit.Test
 
 /** Envelope CRX + ZIP seguro: as duas coisas que um instalador de sideload precisa acertar. */
@@ -128,4 +129,74 @@ class CrxPackageTest {
         assertEquals("extensao-2", CrxPackage.safeFileName("  Extensão 2  "))
         assertEquals("extensao", CrxPackage.safeFileName("!!!"))
     }
+
+    /* ------------------------------------------------------------------ *
+     * O caminho de arquivo (usado pela instalação da Chrome Web Store).   *
+     * A versão em memória foi o defeito: 18 MB viravam 36 de heap, e um   *
+     * download cortado no meio aparecia na tela como "Unexpected end of    *
+     * ZLIB input stream" — verdadeiro e inútil. Estes dois casos seguram a  *
+     * correção: deslocamento certo no CRX3 e truncamento com mensagem que    *
+     * diz o que fazer.                                                        *
+     * ------------------------------------------------------------------ */
+
+    @Test
+    fun `le do arquivo a partir do deslocamento do payload CRX3`() {
+        val zip = zipOf(
+            "manifest.json" to """{"manifest_version":3,"name":"Bloco","version":"1"}""",
+            "content.js" to "console.log('oi')",
+        )
+        val header = ByteArray(40)
+        val payloadStart = 12 + header.size
+        crxFile(zip, header).let { file ->
+            val head = CrxPackage.headerOf(file)
+            assertEquals(payloadStart.toLong(), head.payloadStart)
+            assertEquals(3, head.crxVersion)
+            val dir = File(createTempDir(), "saida")
+            val written = CrxPackage.unzipFrom(file, head.payloadStart, dir)
+            assertEquals(listOf("manifest.json", "content.js"), written.sorted())
+            assertTrue(File(dir, "content.js").readText().contains("console.log"))
+        }
+    }
+
+    @Test
+    fun `pacote cortado no meio devolve mensagem que diz o que fazer, nao pilha do zlib`() {
+        val zip = zipOf(
+            "manifest.json" to """{"manifest_version":3,"name":"Cortado","version":"1"}""",
+            "big.js" to "x".repeat(200_000),
+        )
+        val header = ByteArray(12)
+        val full = java.io.ByteArrayOutputStream().apply {
+            write("Cr24".toByteArray()); write(le32(3)); write(le32(header.size)); write(header); write(zip)
+        }.toByteArray()
+        val file = File.createTempFile("cortado", ".crx")
+        // Trunco no meio da deflate: é o que a conexão caindo produz, e é o caso que a tela
+        // mostrava como texto ininteligível.
+        file.writeBytes(full.copyOf(full.size - full.size / 3))
+        val head = CrxPackage.headerOf(file)
+        val error = runCatching { CrxPackage.unzipFrom(file, head.payloadStart, File(createTempDir(), "x")) }
+            .exceptionOrNull()
+        assertTrue("esperava falha clara, veio: ${error?.message}", error != null)
+        val msg = error!!.message.orEmpty()
+        // A checagem é de começo de frase, não de conteúdo ausente: a mensagem original do
+        // ZipInputStream continua DENTRO do nosso texto (é o que eu quero ler numa issue), mas ela
+        // deixa de ser a primeira coisa que a pessoa vê na tela.
+        assertTrue(
+            "a frase precisa começar pela nossa explicação, e veio: $msg",
+            msg.startsWith("O pacote"),
+        )
+        assertTrue("precisa dizer o que fazer", msg.contains("de novo") || msg.contains("sem função"))
+    }
+
+    private fun crxFile(zip: ByteArray, header: ByteArray): File {
+        val file = File.createTempFile("pacote", ".crx")
+        java.io.ByteArrayOutputStream().apply {
+            write("Cr24".toByteArray())
+            write(le32(3))
+            write(le32(header.size))
+            write(header)
+            write(zip)
+        }.let { file.writeBytes(it.toByteArray()) }
+        return file
+    }
 }
+

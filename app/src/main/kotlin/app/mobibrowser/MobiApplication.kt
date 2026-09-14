@@ -51,6 +51,14 @@ class MobiApplication : Application() {
     var pendingCrash: String? = null
         private set
 
+    /** Só a exceção Java capturada: é o único caso que justifica uma janela na frente da tela. */
+    var javaCrash: String? = null
+        private set
+
+    /** O resto do que a sessão anterior deixou (padrão de encerramentos + decisão do guarda). */
+    var softNotice: String? = null
+        private set
+
     lateinit var prefs: AppPrefs
         private set
     lateinit var db: BrowserDb
@@ -91,7 +99,15 @@ class MobiApplication : Application() {
         EngineGuard.begin(this)
         // Antes de qualquer outra coisa: se a sessão passada terminou em FATAL, a pessoa precisa
         // ver isso sem correr contra o próximo crash para chegar em Configurações → Sobre.
-        pendingCrash = MobiLog.takePendingCrash(this) ?: EngineGuard.notice ?: Diag.lastExit
+        // Duas fontes, e as duas na tela: antes o aviso do guarda escondia o que o sistema
+        // registrou, e foi exatamente assim que uma rodada inteira perdeu a informação mais
+        // importante (o motivo do encerramento). O texto curto vem primeiro, o detalhe depois.
+        javaCrash = MobiLog.takePendingCrash(this)
+        softNotice = buildString {
+            Diag.exitSummary?.let { appendLine(it) }
+            EngineGuard.notice?.let { appendLine(it) }
+        }.trim().takeIf { it.isNotEmpty() }
+        pendingCrash = javaCrash ?: softNotice
         if (pendingCrash != null) MobiLog.e("app", "aviso da sessão anterior pronto para a primeira tela")
         MobiLog.i("app", "onCreate ${BuildConfig.VERSION_NAME} (${BuildConfig.GIT_SHA}) · motor ${BuildConfig.GECKOVIEW_VERSION}")
         prefs = AppPrefs(this)

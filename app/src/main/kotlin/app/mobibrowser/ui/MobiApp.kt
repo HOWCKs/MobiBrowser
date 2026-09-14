@@ -15,7 +15,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -42,6 +45,7 @@ import app.mobibrowser.ui.extensions.ExtensionsScreen
 import app.mobibrowser.ui.extensions.PermissionReviewDialog
 import app.mobibrowser.ui.library.LibraryScreen
 import app.mobibrowser.ui.onboarding.FirstRunSheet
+import app.mobibrowser.ui.settings.DevScreen
 import app.mobibrowser.ui.settings.SettingsScreen
 import app.mobibrowser.ui.tabs.TabsSheet
 import app.mobibrowser.ui.userscripts.UserscriptsScreen
@@ -139,6 +143,15 @@ fun MobiApp(vm: MobiViewModel) {
             SettingsScreen(vm = vm, onDismiss = { vm.hideOverlay() })
         }
 
+        // O avesso de Ajustes: número de versão, motor e log moram aqui, alcançados por um ícone.
+        AnimatedVisibility(
+            visible = overlay == Overlay.DEV,
+            enter = slideInHorizontally(animationSpec = tween(300)) { it },
+            exit = slideOutHorizontally { it },
+        ) {
+            DevScreen(vm = vm, onDismiss = { vm.hideOverlay() })
+        }
+
         AnimatedVisibility(
             visible = overlay == Overlay.HISTORY || overlay == Overlay.BOOKMARKS,
             enter = fadeIn(),
@@ -180,7 +193,13 @@ fun MobiApp(vm: MobiViewModel) {
             var copied by remember { mutableStateOf(false) }
             AlertDialog(
                 onDismissRequest = { vm.dismissCrashNotice() },
-                title = { Text("O MobiBrowser caiu na última sessão") },
+                // Este diálogo é reservado à exceção Java capturada (a pilha existe, o texto é
+                // para copiar). Aviso em linguagem simples sobre fechamento sem exceção vive na
+                // tela de início, onde a pessoa o lê sem fechar janela nenhuma.
+                icon = { Icon(Icons.Default.Warning, contentDescription = null) },
+                title = { Text("O app parou com um erro na última vez") },
+                shape = MaterialTheme.shapes.extraLarge,
+                tonalElevation = 3.dp,
                 text = {
                     Column(
                         modifier = Modifier

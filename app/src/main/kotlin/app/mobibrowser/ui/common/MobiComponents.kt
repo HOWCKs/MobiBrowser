@@ -132,11 +132,26 @@ fun SwitchRow(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 20.dp, vertical = 10.dp),
+            .padding(horizontal = 20.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         if (leadingIcon != null) {
-            Icon(leadingIcon, contentDescription = null, modifier = Modifier.size(22.dp))
+            // Contêiner tonal atrás do ícone: é o jeito Material 3 expressivo de marcar a linha
+            // sem pintar a linha inteira, e dá ao polegar um alvo visível para o toque.
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(MaterialTheme.shapes.small)
+                    .background(MaterialTheme.colorScheme.surfaceContainerHighest),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    leadingIcon,
+                    contentDescription = null,
+                    modifier = Modifier.size(20.dp),
+                    tint = MaterialTheme.colorScheme.primary,
+                )
+            }
             Spacer(Modifier.size(16.dp))
         }
         Column(Modifier.weight(1f)) {
@@ -223,6 +238,29 @@ fun EmptyState(
                 action()
             }
         }
+    }
+}
+
+/**
+ * Cartão padrão do app: superfície tonal em vez de sombra, raio extra grande. Usado nas telas de
+ * dados e de desenvolvimento, onde o conteúdo é texto que se copia — sombra não ajuda a ler.
+ */
+@Composable
+fun MobiCard(
+    modifier: Modifier = Modifier,
+    contentPadding: Dp = 16.dp,
+    containerColor: androidx.compose.ui.graphics.Color = MaterialTheme.colorScheme.surfaceContainerHigh,
+    content: @Composable () -> Unit,
+) {
+    Card(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 4.dp),
+        shape = MaterialTheme.shapes.extraLarge,
+        colors = CardDefaults.cardColors(containerColor = containerColor),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+    ) {
+        Column(Modifier.padding(contentPadding)) { content() }
     }
 }
 

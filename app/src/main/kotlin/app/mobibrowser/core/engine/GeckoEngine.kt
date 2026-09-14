@@ -36,6 +36,15 @@ class GeckoEngine(context: Context) {
     @Volatile
     var skipAddonConfig: Boolean = false
 
+    /**
+     * true entre o pedido de criação do `GeckoRuntime` e o runtime de pé. A tela de início usa
+     * isso para mostrar uma barra fina em vez de um botão que não responde: a pessoa precisa ver
+     * que o motor está nascendo, não que o toque foi ignorado.
+     */
+    @Volatile
+    var creating: Boolean = false
+        private set
+
     @Volatile
     private var readyMarked: Boolean = false
 
@@ -45,7 +54,12 @@ class GeckoEngine(context: Context) {
         // STARTING sem READY e entra em recuperação em vez de fechar sozinha de novo.
         EngineGuard.markStarting(appContext)
         Diag.at("motor:GeckoRuntime.create")
-        GeckoRuntime.create(appContext, settings()).also { Diag.at("motor:runtime criado") }
+        creating = true
+        try {
+            GeckoRuntime.create(appContext, settings()).also { Diag.at("motor:runtime criado") }
+        } finally {
+            creating = false
+        }
     }
 
     /** Controller de WebExtensions do motor. */
@@ -53,11 +67,16 @@ class GeckoEngine(context: Context) {
         get() = runtime.webExtensionController
 
     /**
-     * Configurações do runtime. O que importa para este app é o bloco final: sem
-     * `xpinstall.signatures.required=false` o motor recusa qualquer pacote convertido do
-     * Chrome Web Store (a assinatura é da Google, não da Mozilla) e as extensões ficariam
-     * presas ao modo de compatibilidade. Só o canal nightly respeita essa preferência, por
-     * isso o `geckoviewChannel` em libs.versions.toml e o campo abaixo andam juntos.
+     * Configurações do runtime.
+     *
+     * O bloco final precisa de um aviso honesto: `xpinstall.signatures.required=false` é a única
+     * forma de o motor aceitar um pacote convertido da Chrome Web Store (a assinatura é da Google,
+     * não da Mozilla), e **o canal `release` ignora essa preferência** — ela só existe em build não
+     * oficial. Por isso, no canal que este app usa, a assinatura nunca é liberada por arquivo de
+     * configuração: as extensões convertidas rodam pela ponte MobiBridge, e o `install()` do motor
+     * é tentado mesmo assim porque um pacote *assinado pela Mozilla* (um .xpi do AMO, por exemplo)
+     * instala de verdade. Escrever o YAML no release só dava ao runtime um caminho a mais para
+     * reclamar na criação do processo — foi uma das hipóteses do fechamento silencioso, e cortada.
      */
     private fun settings(): GeckoRuntimeSettings {
         val builder = GeckoRuntimeSettings.Builder()

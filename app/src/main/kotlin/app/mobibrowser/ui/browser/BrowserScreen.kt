@@ -1,7 +1,5 @@
 package app.mobibrowser.ui.browser
 
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
@@ -137,9 +135,6 @@ fun BrowserScreen(
     LaunchedEffect(state?.url) { editing = false }
     LaunchedEffect(tab) { query = state?.url.orEmpty() }
 
-    val filePicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-        uri?.let(vm::installFromUri)
-    }
 
     Column(modifier = modifier.fillMaxSize()) {
         // ----------------------------------------------------------- topo
@@ -154,9 +149,14 @@ fun BrowserScreen(
             shape = if (editing) MaterialTheme.shapes.large else MaterialTheme.shapes.extraSmall,
             modifier = Modifier
                 .fillMaxWidth()
+                // O app é desenhado até atrás da barra de status (edge-to-edge), e era aqui que
+                // faltava o inset: o campo de endereço subia para dentro do relógio e do Wi-Fi e
+                // parecia "saindo da tela". Um único windowInsetsPadding no Surface cobre barra de
+                // status e entalhe, e continua respeitando a transposição da folha.
+                .windowInsetsPadding(WindowInsets.statusBars)
                 .padding(
                     horizontal = if (editing) 8.dp else 0.dp,
-                    vertical = if (editing) 6.dp else 0.dp,
+                    vertical = if (editing) 4.dp else 0.dp,
                 )
                 .onSizeChanged { toolbarHeight = it.height },
         ) {
@@ -207,13 +207,29 @@ fun BrowserScreen(
                 )
             }
             val current = tab
-            if (current == null) {
-                NoTabState(
-                    onNewTab = { vm.newTab() },
-                    onInstallFile = { filePicker.launch(arrayOf("*/*")) },
+            // Sem aba não há superfície onde montar o véu, e criar aba dentro da composição seria
+            // efeito colateral em place recomposable. Um efeito explícito resolve.
+            LaunchedEffect(current == null) {
+                if (current == null) vm.newTab()
+            }
+            if (current != null) EngineSurface(tab = current)
+
+            // Tela de início: um véu opaco sobre a superfície do motor, em vez de um caminho novo
+            // de anexar/desanexar sessão. Toda a classe de bug que já custou tempo aqui mora em
+            // soltar e prender GeckoSession; com o véu, a aba existe, a sessão existe, e nada
+            // precisa ser desmontado quando a pessoa digita um endereço.
+            AnimatedVisibility(
+                visible = state != null && state.url.isBlank(),
+                enter = fadeIn(tween(200)),
+                exit = fadeOut(tween(140)),
+                modifier = Modifier.matchParentSize(),
+            ) {
+                StartScreen(
+                    vm = vm,
+                    refreshKey = state?.url.orEmpty() + "|" + (state?.title.orEmpty()),
+                    onOpenExtensions = { vm.openExtensions() },
+                    onOpenSettings = { vm.show(app.mobibrowser.ui.Overlay.SETTINGS) },
                 )
-            } else {
-                EngineSurface(tab = current)
             }
 
             // Column de embrulho: AnimatedVisibility é extensão de ColumnScope e o Kotlin não
@@ -267,13 +283,13 @@ fun BrowserScreen(
                         modifier = Modifier.padding(start = 14.dp, end = 6.dp),
                     ) {
                         Text(
-                            text = "Motor desligado para diagnóstico. Nada abre página até você " +
-                                "reativar — as telas locais continuam funcionando.",
+                            text = "Nenhuma página abre agora porque o motor foi desligado " +
+                                "de propósito, para teste. As outras telas seguem funcionando.",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onErrorContainer,
                             modifier = Modifier.weight(1f),
                         )
-                        TextButton(onClick = { vm.setEngineOff(false) }) { Text("Reativar") }
+                        TextButton(onClick = { vm.setEngineOff(false) }) { Text("Ligar de novo") }
                     }
                 }
             }
@@ -377,9 +393,14 @@ private fun EngineSurface(tab: BrowserTab, modifier: Modifier = Modifier) {
             // ativa, o update roda mais de uma vez com sessões diferentes, e sem releaseSession()
             // o segundo setSession é um IllegalStateException na main thread (o doc do 155 é
             // explícito: "you must use releaseSession() first, otherwise IllegalStateException").
-            if (view.session !== tab.session) {
+            // `tab.session` é o que chama o motor para a vida: lido sem necessidade, ele nasceria
+            // com a aba vazia e a tela de início perderia o único efeito que tem. Por isso o
+            // `hasSession` primeiro, e o update fica esperando a primeira navegação.
+            if (!tab.hasSession) return@AndroidView
+            val alvo = tab.session
+            if (view.session !== alvo) {
                 view.releaseSession()
-                view.setSession(tab.session)
+                view.setSession(alvo)
             }
         },
         onRelease = { view -> view.releaseSession() },
@@ -416,7 +437,7 @@ private fun AddressRow(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 6.dp, vertical = 4.dp),
+                .padding(horizontal = 4.dp, vertical = 2.dp),
         ) {
             if (editing) {
                 IconButton(onClick = onCancel) {
@@ -434,7 +455,7 @@ private fun AddressRow(
                 color = if (editing) Color.Transparent else MaterialTheme.colorScheme.surfaceContainerHighest,
                 modifier = Modifier
                     .weight(1f)
-                    .heightIn(min = 44.dp),
+                    .heightIn(min = 40.dp),
             ) {
                 if (editing) {
                     OutlinedTextField(
@@ -783,7 +804,12 @@ private fun InstallStatusCard(progress: ExtensionManager.InstallProgress, onDism
     val (text, failed) = when (progress) {
         is ExtensionManager.InstallProgress.Working -> progress.step to false
         is ExtensionManager.InstallProgress.Success ->
-            "${progress.name} — ${if (progress.mode == app.mobibrowser.core.ext.ExtensionRegistry.Mode.NATIVE) "no motor" else "em modo compatibilidade"}" to false
+            "${progress.name} — " +
+                if (progress.mode == app.mobibrowser.core.ext.ExtensionRegistry.Mode.NATIVE) {
+                    "instalada por completo"
+                } else {
+                    "instalada em modo compatível (nem toda função abre)"
+                } to false
 
         is ExtensionManager.InstallProgress.Failure ->
             (progress.message + (progress.detail?.let { "\n$it" } ?: "")) to true
@@ -814,49 +840,6 @@ private fun InstallStatusCard(progress: ExtensionManager.InstallProgress, onDism
             )
             IconButton(onClick = onDismiss) {
                 Icon(Icons.Default.Close, contentDescription = stringResource(R.string.close))
-            }
-        }
-    }
-}
-
-@Composable
-private fun NoTabState(onNewTab: () -> Unit, onInstallFile: () -> Unit) {
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center,
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.surface)
-            .padding(24.dp),
-    ) {
-        Icon(
-            Icons.Default.Extension,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.size(48.dp),
-        )
-        Spacer(Modifier.height(12.dp))
-        Text(
-            "Navegador com extensões",
-            style = MaterialTheme.typography.titleMedium,
-        )
-        Spacer(Modifier.height(6.dp))
-        Text(
-            stringResource(R.string.extensions_none_hint),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        Spacer(Modifier.height(18.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            TextButton(onClick = onNewTab) {
-                Icon(Icons.Default.Add, contentDescription = null)
-                Spacer(Modifier.width(6.dp))
-                Text(stringResource(R.string.action_new_tab))
-            }
-            TextButton(onClick = onInstallFile) {
-                Icon(Icons.Default.Download, contentDescription = null)
-                Spacer(Modifier.width(6.dp))
-                Text(stringResource(R.string.extensions_install_file))
             }
         }
     }

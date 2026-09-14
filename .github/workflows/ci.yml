@@ -116,6 +116,13 @@ jobs:
       - name: Checar comentários de bloco no Kotlin
         run: python3 tools/kotlin-comment-check.py app/src
 
+      # O mesmo tipo de acidente, coberto por baixo: uma chave perdida num `when` dentro de
+      # `"""`/comentário faz o compilador acusar erros em arquivos que estão certos. O verificador
+      # é disparado contra um erro plantado em cada rodada de revisão e precisa pegar o plantado —
+      # teste de duas pontas, porque um checador que sempre diz "ok" não vale nada.
+      - name: Checar balanceamento de chaves no Kotlin
+        run: python3 tools/kotlin-balance-check.py app/src
+
       # Um buildConfigField cortado por engano não gera erro no gradle: gera oito
       # "Unresolved reference" em arquivos aleatórios do app, que é exatamente o que aconteceu
       # quando o GIT_SHA sumiu da lista. Custa um grep e economiza um ciclo de 12 minutos.

@@ -65,7 +65,10 @@ class ExtensionManager(
     private val controller: WebExtensionController get() = engine.webExtensions
 
     private val extensionsRoot = File(context.filesDir, "extensions").apply { mkdirs() }
-    private val stagingRoot = File(context.cacheDir, "ext-staging").apply { mkdirs() }
+    // Staging em filesDir, não em cacheDir. O ENOENT que apareceu na tela do usuário foi o
+    // sistema esvaziando o cache com o pacote baixado lá dentro — cache é descartável por contrato,
+    // e um arquivo de trabalho que precisa sobreviver a 20 MB de download não mora ali.
+    private val stagingRoot = File(context.filesDir, "ext-staging").apply { mkdirs() }
 
     /** Extensões vivas no motor, por geckoId. */
     private val engineExtensions = mutableMapOf<String, WebExtension>()
@@ -316,6 +319,25 @@ class ExtensionManager(
      * Instalação                                                         *
      * ------------------------------------------------------------------ */
 
+    /**
+     * Uma pasta por tentativa, nunca `dl-<id>` compartilhada: com duas tentativas do mesmo id
+     * solapadas (toque no banner + toque no diálogo), a segunda fazia `deleteRecursively()` na
+     * pasta da primeira, e a primeira acabava com "package.crx: open failed: ENOENT".
+     */
+    private fun newStaging(prefix: String): File =
+        File(stagingRoot, "$prefix-${System.currentTimeMillis()}-${UUID.randomUUID().toString().take(8)}")
+            .apply { mkdirs() }
+
+    /** O que uma instalação interrompida deixou para trás, apagado na primeira chance seguinte. */
+    private fun sweepStaleStaging() {
+        val cutoff = System.currentTimeMillis() - 30L * 60L * 1000L
+        runCatching {
+            stagingRoot.listFiles()?.forEach { dir ->
+                if (dir.isDirectory && dir.lastModified() < cutoff) dir.deleteRecursively()
+            }
+        }.onFailure { MobiLog.w(SCOPE, "não consegui limpar o staging: ${it.message}") }
+    }
+
     suspend fun installFromStore(input: String): Boolean {
         val storeId = ChromeWebStore.idFrom(input)
         if (storeId == null) {
@@ -332,7 +354,7 @@ class ExtensionManager(
                 onFailure = { t ->
                     MobiLog.e(SCOPE, "instalação de $storeId falhou", t)
                     _progress.value = InstallProgress.Failure(
-                        "Não foi possível instalar a extensão.",
+                        "A extensão não foi instalada.",
                         t.message,
                         storeId,
                     )
@@ -342,49 +364,70 @@ class ExtensionManager(
     }
 
     private suspend fun downloadAndInstall(storeId: String): Boolean {
-        step("Baixando pacote da Chrome Web Store…")
-        val staging = File(stagingRoot, "dl-$storeId").apply { deleteRecursively(); mkdirs() }
+        sweepStaleStaging()
+        step("Baixando a extensão…")
+        val staging = newStaging("dl-$storeId")
         val crx = File(staging, "package.crx")
-        store.downloadCrx(storeId, crx)
-        val summary = store.fetchSummary(storeId)
-        return installPackage(
-            bytes = crx.readBytes(),
-            preferredStoreId = storeId,
-            displayName = summary.name,
-            description = summary.description,
-        )
+        try {
+            store.downloadCrx(storeId, crx)
+            val summary = store.fetchSummary(storeId)
+            installPackage(
+                source = crx,
+                preferredStoreId = storeId,
+                displayName = summary.name,
+                description = summary.description,
+            )
+        } finally {
+            runCatching { staging.deleteRecursively() }
+        }
     }
 
     /** Sideload: aceita .crx, .xpi, .zip e pasta compactada de extensão. */
-    suspend fun installFromFile(uri: Uri): Boolean = runCatching {
-        val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
-            ?: error("Não consegui ler o arquivo escolhido.")
-        step("Lendo pacote…")
-        installPackage(bytes, preferredStoreId = null, displayName = null, description = null)
-    }.getOrElse {
-        MobiLog.e(SCOPE, "sideload falhou", it)
-        _progress.value = InstallProgress.Failure("Arquivo inválido.", it.message, null)
-        false
+    suspend fun installFromFile(uri: Uri): Boolean {
+        sweepStaleStaging()
+        val staging = newStaging("sideload")
+        val copy = File(staging, "package.crx")
+        return runCatching {
+            step("Lendo o arquivo…")
+            // Copio para um arquivo em vez de `readBytes()`: pacote de extensão tem dezenas de MB,
+            // e um ByteArray desse tamanho no meio da inicialização do motor é convite para o
+            // sistema apertar a memória justamente quando ela já está apertada.
+            context.contentResolver.openInputStream(uri)?.use { input ->
+                copy.outputStream().use { out -> input.copyTo(out) }
+            } ?: error("Não consegui ler o arquivo escolhido.")
+            installPackage(copy, preferredStoreId = null, displayName = null, description = null)
+        }.getOrElse {
+            MobiLog.e(SCOPE, "sideload falhou", it)
+            _progress.value = InstallProgress.Failure("Não deu para instalar esse arquivo.", it.message, null)
+            false
+        }.also {
+            runCatching { staging.deleteRecursively() }
+        }
     }
 
     private suspend fun installPackage(
-        bytes: ByteArray,
+        source: File,
         preferredStoreId: String?,
         displayName: String?,
         description: String?,
     ): Boolean {
-        val workDir = File(stagingRoot, "w-${UUID.randomUUID()}").apply { mkdirs() }
+        val workDir = newStaging("w")
         try {
-            step("Desempacotando…")
-            val payload = CrxPackage.extract(bytes).zipPayload
-            val files = CrxPackage.unzip(payload, workDir)
+            step("Abrindo o pacote…")
+            val header = CrxPackage.headerOf(source)
+            val files = CrxPackage.unzipFrom(source, header.payloadStart, workDir)
+            MobiLog.i(
+                SCOPE,
+                "pacote ${source.length()} bytes · CRX v${header.crxVersion} · payload em " +
+                    "${header.payloadStart} · $files arquivos desempacotados",
+            )
             val rawManifest = CrxPackage.readManifest(workDir)
             if (rawManifest == null) {
                 fail("Sem manifest.json no pacote.", "Não parece uma extensão (arquivos no ZIP: ${files.size}).", preferredStoreId)
                 return false
             }
 
-            step("Convertendo manifest para WebExtensions…")
+            step("Adaptando a extensão para este navegador…")
             val converted = try {
                 ManifestConverter.convert(rawManifest, forcedGeckoId = preferredStoreId?.let { "$it@mobi-store" })
             } catch (e: ManifestConverter.ConversionException) {
@@ -394,12 +437,12 @@ class ExtensionManager(
             File(workDir, "manifest.json").writeText(converted.manifest)
             val geckoId = converted.report.geckoId
 
-            step("Empacotando .xpi…")
+            step("Preparando a instalação…")
             val xpi = File(extensionsRoot, "$geckoId.xpi")
             CrxPackage.zip(workDir, xpi)
 
             // 1ª tentativa: motor (WebExtension real).
-            step("Instalando no motor…")
+            step("Instalando…")
             val installed = runCatching {
                 withTimeoutOrNull(60_000) {
                     controller.install(
@@ -422,7 +465,7 @@ class ExtensionManager(
             // 2ª tentativa: ponte de compatibilidade (só content scripts/estilos/regras).
             val code = (installError as? WebExtension.InstallException)?.code
             MobiLog.w(SCOPE, "install nativo recusado (code=$code): ${installError?.message}")
-            step("Motor recusou o pacote — instalando em modo compatibilidade…")
+            step("O navegador não aceitou a assinatura original — instalando em modo compatível…")
             val keptDir = File(extensionsRoot, geckoId).apply { deleteRecursively(); mkdirs() }
             workDir.copyRecursively(keptDir, overwrite = true)
             val scripts = harvestBridgeScripts(geckoId, converted.manifest, keptDir, converted.report)
@@ -436,8 +479,8 @@ class ExtensionManager(
                         warnings = converted.report.warnings +
                             if (scripts == 0) {
                                 listOf(
-                                    "Este pacote não expõe content scripts/estilos — em modo compatibilidade " +
-                                        "não há o que executar.",
+                                    "Esta extensão não traz scripts nem estilos para injetar nas páginas, " +
+                                        "então em modo compatível ela fica instalada sem função visível.",
                                 )
                             } else {
                                 listOf(MODE_BRIDGE_NOTE)
@@ -797,8 +840,8 @@ class ExtensionManager(
         private const val BRIDGE_NATIVE_APP = "mobibridge-native"
         private const val MAX_HARVESTED_RULES = 25_000
         const val MODE_BRIDGE_NOTE =
-            "Modo compatibilidade: content scripts, estilos e regras de bloqueio rodam pela " +
-                "MobiBridge. APIs privilegiadas (webRequest bloqueante, debugger, tabCapture, " +
-                "nativas de UI) não estão disponíveis porque não há runtime de extensão."
+            "Modo compatível: funcionam os scripts na página, os estilos e as regras de bloqueio. " +
+                "O botão da extensão na barra, o painel dela e as funções que pedem controle total " +
+                "da aba não funcionam, porque este navegador não executa a extensão dentro do motor."
     }
 }

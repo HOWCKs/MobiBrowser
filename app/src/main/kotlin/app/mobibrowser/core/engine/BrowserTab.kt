@@ -38,15 +38,38 @@ class BrowserTab(
     )
     val state: StateFlow<TabUiState> = _state.asStateFlow()
 
-    val session: GeckoSession = engine.newSession(
-        isPrivate = isPrivate,
-        javascript = javascript,
-        desktop = desktopMode,
-        trackingProtection = trackingProtection,
-    ).also { s ->
-        s.open(engine.runtime)
-        wireDelegates(s)
+    // As três configurações que podem ser pedidas antes de a sessão existir. Guardá-las aqui é o
+    // que permite criar a sessão tarde sem perder o pedido: quem alterna "modo desktop" numa aba
+    // vazia recebe o valor quando o motor nascer, e não um objeto que não existe ainda.
+    private var cfgJavascript = javascript
+    private var cfgDesktop = desktopMode
+    private var cfgTracking = trackingProtection
+
+    /**
+     * A sessão do motor nasce **na primeira navegação**, não na criação da aba.
+     *
+     * É a mudança que separa "abrir o navegador" de "abrir uma página": enquanto a pessoa está na
+     * tela de início, nenhum `GeckoRuntime` foi criado, então uma morte nativa durante o nascimento
+     * do motor não pode levar o aplicativo inteiro no caminho de abertura — e, se levar, fica provado
+     * que a culpa não é dele. `load()`, `reload()` e os delegados tocam [session] e, aí sim, o
+     * motor é criado exatamente como era criado antes, pela mesma pilha.
+     */
+    private val sessionLazy = lazy(LazyThreadSafetyMode.NONE) {
+        engine.newSession(
+            isPrivate = isPrivate,
+            javascript = cfgJavascript,
+            desktop = cfgDesktop,
+            trackingProtection = cfgTracking,
+        ).also { s ->
+            s.open(engine.runtime)
+            wireDelegates(s)
+        }
     }
+
+    val session: GeckoSession get() = sessionLazy.value
+
+    /** true quando o motor já foi convocado por esta aba — a UI usa isto para não forçar o nascimento. */
+    val hasSession: Boolean get() = sessionLazy.isInitialized()
 
     /** Chamado quando a página termina de carregar (histórico, preview de aba). */
     var onCommit: ((url: String, title: String) -> Unit)? = null
@@ -79,6 +102,8 @@ class BrowserTab(
 
     fun setDesktopMode(desktop: Boolean) {
         _state.update { it.copy(desktopMode = desktop) }
+        cfgDesktop = desktop
+        if (!hasSession) return
         session.settings.setUserAgentMode(
             if (desktop) GeckoSessionSettings.USER_AGENT_MODE_DESKTOP
             else GeckoSessionSettings.USER_AGENT_MODE_MOBILE,
@@ -92,12 +117,16 @@ class BrowserTab(
 
     fun setJavascript(enabled: Boolean) {
         _state.update { it.copy(javascript = enabled) }
+        cfgJavascript = enabled
+        if (!hasSession) return
         session.settings.setAllowJavascript(enabled)
         reload()
     }
 
     fun setTrackingProtection(enabled: Boolean) {
         _state.update { it.copy(trackingProtection = enabled) }
+        cfgTracking = enabled
+        if (!hasSession) return
         session.settings.setUseTrackingProtection(enabled)
         reload()
     }
@@ -112,6 +141,9 @@ class BrowserTab(
 
     fun find(query: String, backwards: Boolean = false) {
         _state.update { it.copy(findQuery = query) }
+        // Sem sessão não há página e não há `finder`; o `session` daqui criaria o motor só para
+        // procurar nada, o que anularia a economia da tela de início.
+        if (!hasSession) return
         if (query.isBlank()) {
             session.finder.clear()
             _state.update { it.copy(findMatches = 0) }
@@ -125,7 +157,7 @@ class BrowserTab(
     }
 
     fun closeFind() {
-        session.finder.clear()
+        if (hasSession) session.finder.clear()
         _state.update { it.copy(findQuery = "", findMatches = 0, findVisible = false) }
     }
 
@@ -137,8 +169,12 @@ class BrowserTab(
         if (closed) return
         closed = true
         onCommit = null
-        runCatching { session.close() }
-            .onFailure { MobiLog.w(SCOPE, "fechando sessão $id com erro", it) }
+        // `session` nunca é lido aqui: fechar uma aba que não chegou a navegar não deve ter o
+        // efeito colateral absurdo de criar o motor do navegador só para fechá-lo em seguida.
+        if (hasSession) {
+            runCatching { session.close() }
+                .onFailure { MobiLog.w(SCOPE, "fechando sessão $id com erro", it) }
+        }
     }
 
     private fun wireDelegates(s: GeckoSession) {
