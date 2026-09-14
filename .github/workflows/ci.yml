@@ -162,26 +162,45 @@ jobs:
 
       - name: Separar os APKs para download
         run: |
-          mkdir -p dist/apks
-          # O universal é a soma de todas as ABIs (~3x o tamanho) e é raríssimo precisar dele:
+          # O universal é a soma de todas as ABIs (~3x o tamanho) e quase ninguém precisa dele:
           # quem instala à mão escolhe o split do aparelho. Ele continua no build, só não no
           # artefato — 589 MB de download no celular não é um loop de feedback razoável.
-          find app/build/outputs/apk -name '*.apk' ! -name '*universal*' -exec cp -v {} dist/apks/ \;
+          mkdir -p dist/apks dist/apks-arm64
+          find app/build/outputs/apk -name '*.apk' ! -name '*universal*' -exec cp {} dist/apks/ \;
+          for f in dist/apks/*.apk; do
+            nome=$(basename "$f" | tr 'A-Z' 'a-z')
+            case "$nome" in
+              *arm64*v8a*) cp "$f" dist/apks-arm64/ ;;
+            esac
+          done
+          if [ -z "$(ls -A dist/apks-arm64)" ]; then
+            # Se o AGP mudou o padrão de nome dos splits, isto me diz os nomes reais sem eu
+            # precisar caçar no log (o log do Actions não é acessível daqui).
+            echo "::error::nenhum APK de arm64 em dist/apks — nomes: $(ls dist/apks | tr '\n' ' ')"
+            exit 1
+          fi
           {
             echo "## APKs instáveis (prontos para instalar)"
             echo ""
-            echo "| arquivo | tamanho | para quem |"
+            echo "| arquivo | tamanho | ABI |"
             echo "|---|---|---|"
             for f in dist/apks/*.apk; do
               sz=$(stat -c %s "$f")
-              abi=$(basename "$f" .apk | sed 's/.*unstable-//')
-              echo "| \`$(basename "$f")\` | $((sz/1048576)) MB | \`$abi\` — **este é o do seu aparelho se ele for dos últimos 8 anos** |"
+              n=$(basename "$f" | tr 'A-Z' 'a-z')
+              case "$n" in
+                *arm64*) abi="arm64-v8a (o do seu aparelho)" ;;
+                *v7a*) abi="armeabi-v7a (aparelhos ~2014-2017)" ;;
+                *x86_64*) abi="x86_64 (emulador/Chromebook)" ;;
+                *) abi="?" ;;
+              esac
+              echo "| \`$(basename "$f")\` | $((sz/1048576)) MB | $abi |"
             done
             echo ""
-            echo "Se aparecer \`INSTALL_FAILED_NO_MATCHING_ABIS\`, é o split errado (ou o caso raro"
-            echo "de x86): me avise que eu publico o universal."
+            echo "Artefato \`mobibrowser-apk-arm64-<sha>\`: só o de arm64, ~120 MB. Se der"
+            echo "\`INSTALL_FAILED_NO_MATCHING_ABIS\`, é o caso raro (x86) — me avise que eu"
+            echo "publico o universal."
           } >> "$GITHUB_STEP_SUMMARY"
-          ls -la dist/apks
+          ls -l dist/apks dist/apks-arm64
 
       # Artefato só com o arm64: é o que se instala num aparelho moderno, e baixar 120 MB em
       # vez de 344 MB é a diferença entre um loop de feedback de 2 minutos e um de 15.
@@ -189,7 +208,8 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: mobibrowser-apk-arm64-${{ github.sha }}
-          path: dist/apks/*arm64-v8a.apk
+          # Diretório, não glob: o nome exato do split é decisão do AGP e mudou uma vez.
+          path: dist/apks-arm64
           if-no-files-found: error
           compression-level: 1
           retention-days: 7
