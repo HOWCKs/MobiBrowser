@@ -204,6 +204,26 @@ jobs:
 
       # Artefato só com o arm64: é o que se instala num aparelho moderno, e baixar 120 MB em
       # vez de 344 MB é a diferença entre um loop de feedback de 2 minutos e um de 15.
+      # Um APK que compila e não abre é a pior falha possível neste projeto (não há QA antes
+      # de instalar): o veredito é "tem uma activity lançável?", e isso o aapt2 sabe dizer.
+      - name: Exigir activity lançável no APK
+        run: |
+          AAPT=$(find "$ANDROID_HOME/build-tools" -name aapt2 -type f 2>/dev/null | sort | tail -1)
+          [ -n "$AAPT" ] || AAPT=$(find ~/.gradle -name 'aapt2' -type f 2>/dev/null | head -1)
+          if [ -z "$AAPT" ]; then
+            echo "::warning::aapt2 não encontrado — checagem do lançador pulada"
+            exit 0
+          fi
+          for f in dist/apks/*.apk; do
+            if "$AAPT" dump badging "$f" | grep -q "launchable-activity: name='app.mobibrowser.MainActivity'"; then
+              echo "ok: $(basename "$f") tem activity de lançamento"
+            else
+              echo "::error::$(basename "$f") NÃO tem launchable-activity — o app instala mas ninguém consegue abrir"
+              "$AAPT" dump badging "$f" | head -20
+              exit 1
+            fi
+          done
+
       - name: Publicar APK arm64 (o do seu aparelho)
         uses: actions/upload-artifact@v4
         with:

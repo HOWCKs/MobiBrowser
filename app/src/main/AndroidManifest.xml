@@ -26,6 +26,18 @@
             android:launchMode="singleTask"
             android:windowSoftInputMode="adjustResize">
 
+            <!-- A ENTRADA NO LANÇADOR. Sem este filtro o app instala, ocupa 214 MB, aparece
+                 em Configurações > Apps, "Forçar parada" funciona — e não há ícone na gaveta
+                 nem nada para tocar: é o Android quem decide o que "pode ser aberto", e ele só
+                 considera activity com action MAIN + category LAUNCHER. Os filtros abaixo
+                 (VIEW/SEND/WEB_SEARCH) só servem para OS OUTROS apps chamarem a gente.
+                 Foi o bug do primeiro aparelho: os filtros de link foram escritos e o de
+                 lançamento se perdeu neles. -->
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+
             <!-- Navegador padrão para links http/https -->
             <intent-filter android:autoVerify="false">
                 <action android:name="android.intent.action.VIEW" />
