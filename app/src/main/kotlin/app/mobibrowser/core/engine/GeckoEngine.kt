@@ -2,6 +2,7 @@ package app.mobibrowser.core.engine
 
 import android.content.Context
 import app.mobibrowser.BuildConfig
+import app.mobibrowser.core.Diag
 import app.mobibrowser.core.EngineGuard
 import app.mobibrowser.core.MobiLog
 import org.mozilla.geckoview.GeckoRuntime
@@ -43,7 +44,8 @@ class GeckoEngine(context: Context) {
         // Antes de qualquer outra coisa: se o processo morrer aqui, a próxima abertura vê
         // STARTING sem READY e entra em recuperação em vez de fechar sozinha de novo.
         EngineGuard.markStarting(appContext)
-        GeckoRuntime.create(appContext, settings())
+        Diag.at("motor:GeckoRuntime.create")
+        GeckoRuntime.create(appContext, settings()).also { Diag.at("motor:runtime criado") }
     }
 
     /** Controller de WebExtensions do motor. */
@@ -151,6 +153,7 @@ class GeckoEngine(context: Context) {
         if (!readyMarked) {
             readyMarked = true
             EngineGuard.markReady(appContext)
+            Diag.at("motor:1ª sessão criada")
         }
         return GeckoSession(settings)
     }

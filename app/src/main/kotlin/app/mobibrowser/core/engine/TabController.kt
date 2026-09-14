@@ -1,5 +1,6 @@
 package app.mobibrowser.core.engine
 
+import app.mobibrowser.core.Diag
 import app.mobibrowser.core.MobiLog
 import app.mobibrowser.data.AppPrefs
 import app.mobibrowser.data.BrowserDb
@@ -87,7 +88,10 @@ class TabController(
         }
         _tabs.update { it + tab }
         if (select) _selectedId.value = tab.id
-        if (url.isNotBlank()) tab.load(url)
+        if (url.isNotBlank()) {
+            Diag.at("aba:carregar ${url.take(48)}")
+            tab.load(url)
+        }
         persist()
         return tab
     }
@@ -142,6 +146,7 @@ class TabController(
         val urls = prefs.startupTabs()
         val desktopByDefault = prefs.defaultDesktopMode()
         MobiLog.d(SCOPE, "restaurando ${urls.size} aba(s)")
+        Diag.at("abas:restaurar ${urls.size}")
         urls.forEach { url -> create(url, isPrivate = false, select = false, desktop = desktopByDefault) }
         if (_tabs.value.isEmpty()) {
             val home = prefs.homepage()

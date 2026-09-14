@@ -36,10 +36,14 @@ object MobiLog {
     private var writer: PrintWriter? = null
     private var logFile: File? = null
     private var crashFile: File? = null
+    private var errFile: File? = null
     private var startedAt = 0L
 
     /** Arquivo lido pela próxima abertura para avisar de morte anterior (sem `adb`, é o único canal). */
     private const val CRASH_FILE = "mobibrowser-crash.txt"
+
+    /** Só erros, em ordem, através das aberturas. */
+    private const val ERRORS_FILE = "mobibrowser-errors.txt"
 
     /** Chamar na primeira linha do `Application.onCreate`, antes de qualquer outra camada. */
     fun attach(context: Context) {
@@ -47,6 +51,7 @@ object MobiLog {
         val dir = File(context.getExternalFilesDir(null) ?: context.filesDir, "logs")
         val file = File(dir, "mobibrowser-log.txt")
         crashFile = File(context.filesDir, CRASH_FILE)
+        errFile = File(context.filesDir, ERRORS_FILE)
         runCatching {
             dir.mkdirs()
             if (file.exists() && file.length() > MAX_FILE_BYTES) file.delete()
@@ -130,6 +135,12 @@ object MobiLog {
             else -> Log.d(TAG, text)
         }
         val line = "${stamp.format(Date())} $text"
+        // Erros vão também para um arquivo próprio, que não é podado pelo limite de tamanho do
+        // log: quando o app fecha dez vezes seguidas, o que interessa é a *sequência* das
+        // falhas entre aberturas, e ela sobreviveria ao corte só neste segundo arquivo.
+        if (level == 'E') runCatching {
+            errFile?.appendText(line + "\n" + (err?.let { Log.getStackTraceString(it) + "\n" } ?: "\n"))
+        }
         synchronized(ring) {
             ring.addLast(line)
             while (ring.size > MAX_LINES) ring.removeFirst()
@@ -166,5 +177,11 @@ object MobiLog {
             logFile?.readLines()?.takeLast(400)?.joinToString("\n")
         }.getOrNull()
         append(fromFile?.takeIf { it.isNotBlank() } ?: tail())
+        val errs = runCatching { errFile?.readText()?.lines()?.takeLast(80)?.joinToString("\n") }.getOrNull()
+        if (!errs.isNullOrBlank()) {
+            appendLine()
+            appendLine("---- erros acumulados entre aberturas ----")
+            append(errs)
+        }
     }
 }

@@ -50,6 +50,7 @@ import app.mobibrowser.R
 import app.mobibrowser.data.SearchEngine
 import app.mobibrowser.data.ThemeMode
 import app.mobibrowser.ui.MobiViewModel
+import app.mobibrowser.core.Diag
 import app.mobibrowser.core.MobiLog
 import app.mobibrowser.core.update.UpdateManager
 import app.mobibrowser.ui.common.InfoRow
@@ -305,7 +306,7 @@ fun SettingsScreen(vm: MobiViewModel, onDismiss: () -> Unit) {
                             modifier = Modifier.weight(1f),
                         )
                         androidx.compose.material3.TextButton(onClick = {
-                            clipboard.setText(androidx.compose.ui.text.AnnotatedString(MobiLog.report(ctx)))
+                            clipboard.setText(androidx.compose.ui.text.AnnotatedString(Diag.export(ctx)))
                             copied = true
                         }) { Text("Diagnóstico") }
                     }

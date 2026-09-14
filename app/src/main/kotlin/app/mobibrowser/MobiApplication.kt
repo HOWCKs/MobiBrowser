@@ -3,6 +3,7 @@ package app.mobibrowser
 import android.app.Application
 import android.content.Intent
 import app.mobibrowser.BuildConfig
+import app.mobibrowser.core.Diag
 import app.mobibrowser.core.EngineGuard
 import app.mobibrowser.core.MobiLog
 import app.mobibrowser.core.engine.GeckoEngine
@@ -80,17 +81,23 @@ class MobiApplication : Application() {
         // indistinguível de um app que "não abre" — e aqui o aparelho não tem adb.
         MobiLog.attach(this)
         MobiLog.guardCrashes()
+        // Os coletores antes de tudo o mais: medir a morte exige estar vivo antes do que quer que
+        // mate, e o ApplicationExitInfo é lido no início justamente para o aviso sair na primeira
+        // tela desta abertura, sem depender de a pessoa conseguir navegar até Ajustes.
+        Diag.start(this)
+        Diag.at("onCreate")
         // O guarda vem em segundo lugar, antes de qualquer camada tocar o motor: é ele que decide
         // se esta abertura começa em recuperação (sessão anterior parada no berço do Gecko).
         EngineGuard.begin(this)
         // Antes de qualquer outra coisa: se a sessão passada terminou em FATAL, a pessoa precisa
         // ver isso sem correr contra o próximo crash para chegar em Configurações → Sobre.
-        pendingCrash = MobiLog.takePendingCrash(this) ?: EngineGuard.notice
+        pendingCrash = MobiLog.takePendingCrash(this) ?: EngineGuard.notice ?: Diag.lastExit
         if (pendingCrash != null) MobiLog.e("app", "aviso da sessão anterior pronto para a primeira tela")
         MobiLog.i("app", "onCreate ${BuildConfig.VERSION_NAME} (${BuildConfig.GIT_SHA}) · motor ${BuildConfig.GECKOVIEW_VERSION}")
         prefs = AppPrefs(this)
         db = BrowserDb(this)
         engine = GeckoEngine(this)
+        Diag.at("camadas:engine")
         registry = ExtensionRegistry(this, appScope)
         bridge = BridgeScripts(this, db, registry, appScope)
         extensions = ExtensionManager(
@@ -114,6 +121,7 @@ class MobiApplication : Application() {
                 .onFailure { MobiLog.e("app", "gestor de extensões não subiu; as telas seguem sem ele", it) }
         }
         appScope.launch {
+            Diag.at("restauração:esperando 1ª tela")
             if (EngineGuard.engineOff) {
                 // Alavanca de diagnóstico: sem tocar em Gecko, qualquer fechamento restante é do
                 // app (Compose/persistência), e é isso que precisa ficar provado.
@@ -165,6 +173,11 @@ class MobiApplication : Application() {
             MobiLog.i(SCOPE, "memória baixa: descartando aba ${tab.id}")
             tabs.close(tab.id)
         }
+    }
+
+    /** Chamado pela Activity quando a pessoa fecha de verdade: marca o encerramento limpo. */
+    fun noteCleanEnd() {
+        Diag.stop(this)
     }
 
     override fun onTerminate() {
