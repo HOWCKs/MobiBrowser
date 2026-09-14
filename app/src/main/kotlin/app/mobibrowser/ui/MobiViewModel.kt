@@ -62,6 +62,11 @@ class MobiViewModel(application: Application) : AndroidViewModel(application) {
     private val _overlay = MutableStateFlow(Overlay.NONE)
     val overlay: StateFlow<Overlay> = _overlay.asStateFlow()
 
+    /** Aviso rápido para o usuário: a UI só conhece [snack], ninguém emite SnackbarMessage na mão. */
+    private suspend fun snack(text: String, actionLabel: String? = null) {
+        _snack.emit(SnackbarMessage(text, actionLabel))
+    }
+
     private val _snack = MutableSharedFlow<SnackbarMessage>(extraBufferCapacity = 4)
     val snack = _snack.shareIn(viewModelScope, SharingStarted.Eagerly)
 
@@ -132,7 +137,7 @@ class MobiViewModel(application: Application) : AndroidViewModel(application) {
         val tab = selectedTab.value ?: return
         tab.setJavascript(!tab.state.value.javascript)
         viewModelScope.launch {
-            _snack.emit(if (tab.state.value.javascript) "JavaScript ligado" else "JavaScript desligado")
+            snack(if (tab.state.value.javascript) "JavaScript ligado" else "JavaScript desligado")
         }
     }
 
@@ -180,11 +185,11 @@ class MobiViewModel(application: Application) : AndroidViewModel(application) {
             if (db.isBookmarked(state.url)) {
                 db.removeBookmark(state.url)
                 _bookmarkActive.value = false
-                _snack.emit("Removido dos favoritos")
+                snack("Removido dos favoritos")
             } else {
                 db.addBookmark(state.url, state.title.ifBlank { state.displayUrl })
                 _bookmarkActive.value = true
-                _snack.emit("Salvo nos favoritos")
+                snack("Salvo nos favoritos")
             }
         }
     }
@@ -199,7 +204,7 @@ class MobiViewModel(application: Application) : AndroidViewModel(application) {
 
     fun clearHistory() = viewModelScope.launch(Dispatchers.IO) {
         db.clearHistory()
-        _snack.emit("Histórico limpo")
+        snack("Histórico limpo")
     }
 
     fun removeBookmark(url: String) = viewModelScope.launch(Dispatchers.IO) {
@@ -223,14 +228,14 @@ class MobiViewModel(application: Application) : AndroidViewModel(application) {
     fun installFromStore(input: String) {
         viewModelScope.launch {
             val ok = extensions.installFromStore(input)
-            if (ok) _snack.emit("Extensão instalada")
+            if (ok) snack("Extensão instalada")
         }
     }
 
     fun installFromUri(uri: Uri) {
         viewModelScope.launch {
             val ok = extensions.installFromFile(uri)
-            if (ok) _snack.emit("Extensão instalada")
+            if (ok) snack("Extensão instalada")
         }
     }
 
@@ -245,7 +250,7 @@ class MobiViewModel(application: Application) : AndroidViewModel(application) {
 
     fun uninstallExtension(geckoId: String) = viewModelScope.launch {
         extensions.uninstall(geckoId)
-        _snack.emit("Extensão removida")
+        snack("Extensão removida")
     }
 
     fun setExtensionPrivate(geckoId: String, allowed: Boolean) =
@@ -259,7 +264,7 @@ class MobiViewModel(application: Application) : AndroidViewModel(application) {
     ) = viewModelScope.launch { extensions.setSiteAccess(geckoId, access, allowList, denyList) }
 
     fun updateExtension(geckoId: String) = viewModelScope.launch {
-        if (extensions.updateFromStore(geckoId)) _snack.emit("Extensão atualizada")
+        if (extensions.updateFromStore(geckoId)) snack("Extensão atualizada")
     }
 
     fun openExtensionOptions(geckoId: String) = extensions.openOptionsPage(geckoId)
@@ -289,7 +294,7 @@ class MobiViewModel(application: Application) : AndroidViewModel(application) {
                 if (allow.any { it.contains(host) }) allow.removeAll { it.contains(host) } else allow += pattern
                 extensions.setSiteAccess(geckoId, ExtensionRegistry.SiteAccess.ALLOW_LIST, allow, record.denyList)
             }
-            _snack.emit("Atualizado para $host")
+            snack("Atualizado para $host")
         }
     }
 
@@ -302,12 +307,12 @@ class MobiViewModel(application: Application) : AndroidViewModel(application) {
 
     fun saveScript(script: UserScript) = viewModelScope.launch(Dispatchers.IO) {
         db.saveScript(script)
-        _snack.emit("Salvo")
+        snack("Salvo")
     }
 
     fun deleteScript(id: String) = viewModelScope.launch(Dispatchers.IO) {
         db.deleteScript(id)
-        _snack.emit("Excluído")
+        snack("Excluído")
     }
 
     fun setScriptEnabled(id: String, enabled: Boolean) = viewModelScope.launch(Dispatchers.IO) {
@@ -334,7 +339,7 @@ class MobiViewModel(application: Application) : AndroidViewModel(application) {
                     runAtIdle = false,
                 ),
             )
-            _snack.emit("Importado: $name")
+            snack("Importado: $name")
         }.onFailure { MobiLog.w("ui", "import falhou", it) }
     }
 
@@ -361,7 +366,7 @@ class MobiViewModel(application: Application) : AndroidViewModel(application) {
     fun setGlobalPrivacyControl(enabled: Boolean) = viewModelScope.launch {
         app.prefs.setGlobalPrivacyControl(enabled)
         app.engine.globalPrivacyControl = enabled
-        _snack.emit(SnackbarMessage("Sinal de privacidade atualizado — vale a partir do próximo início do motor"))
+        snack("Sinal de privacidade atualizado — vale a partir do próximo início do motor")
     }
 
     /** Padrão de ETP para abas novas (o por-aba fica no menu da página). */
@@ -392,7 +397,7 @@ class MobiViewModel(application: Application) : AndroidViewModel(application) {
     fun clearEverything() = viewModelScope.launch(Dispatchers.IO) {
         db.clearEverything()
         app.engine.clearEngineData()
-        _snack.emit("Dados de navegação limpos")
+        snack("Dados de navegação limpos")
     }
 
     fun shareCurrentUrl() {

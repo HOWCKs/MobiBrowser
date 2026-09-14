@@ -116,7 +116,7 @@ fun MobiApp(vm: MobiViewModel) {
         AnimatedVisibility(
             visible = overlay == Overlay.USERSCRIPTS,
             enter = slideInHorizontally(animationSpec = tween(300)) { it },
-            exit = slideInHorizontally { it },
+            exit = slideOutHorizontally { it },
         ) {
             UserscriptsScreen(vm = vm, onDismiss = { vm.hideOverlay() })
         }
@@ -124,7 +124,7 @@ fun MobiApp(vm: MobiViewModel) {
         AnimatedVisibility(
             visible = overlay == Overlay.SETTINGS,
             enter = slideInHorizontally(animationSpec = tween(300)) { it },
-            exit = slideInHorizontally { it },
+            exit = slideOutHorizontally { it },
         ) {
             SettingsScreen(vm = vm, onDismiss = { vm.hideOverlay() })
         }

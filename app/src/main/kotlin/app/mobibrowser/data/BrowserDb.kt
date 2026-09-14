@@ -102,7 +102,7 @@ class BrowserDb(context: Context) : SQLiteOpenHelper(context.applicationContext,
               last_visit = excluded.last_visit,
               visits = visits + 1
             """.trimIndent(),
-            arrayOf(url, title, System.currentTimeMillis()),
+            arrayOf<Any>(url, title, System.currentTimeMillis()),
         )
     }
 
@@ -229,7 +229,10 @@ class BrowserDb(context: Context) : SQLiteOpenHelper(context.applicationContext,
     }
 
     fun setScriptEnabled(id: String, enabled: Boolean) {
-        writableDatabase.execSQL("UPDATE scripts SET enabled = ? WHERE id = ?", arrayOf(if (enabled) 1 else 0, id))
+        writableDatabase.execSQL(
+            "UPDATE scripts SET enabled = ? WHERE id = ?",
+            arrayOf<Any>(if (enabled) 1 else 0, id),
+        )
     }
 
     fun deleteScript(id: String) {

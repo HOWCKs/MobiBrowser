@@ -42,8 +42,9 @@ BLOCK_END = re.compile(r"^\* Try:|^=\+$|^\* Get more help|^\* For more")
 AAR_HEADER = re.compile(r"(?P<count>\d+) issues? were found when checking AAR metadata")
 COMPILE_NOTE = re.compile(r"^(FAILURE:|Execution failed for task|> Compilation error)")
 
-MAX_PER_FILE = 6        # mensagens exibidas por arquivo
+MAX_PER_FILE = 12       # linhas por anotação (o teto é de anotações, não de linhas)
 MAX_FILES = 40          # arquivos anotados
+MAX_ANNOTATIONS = 46    # o GitHub descarta a anotação 51 de um check run
 MAX_BLOCKS = 6
 BLOCK_CHARS = 1400
 
@@ -155,12 +156,28 @@ def main() -> int:
     for block in blocks[:MAX_BLOCKS]:
         emit("error", block)
 
+    # Um arquivo com 30 erros não pode perder 18: em vez de truncar, o grupo vira várias
+    # anotações (partes). Perder o fim da lista foi o que escondeu a causa raiz do ciclo
+    # do comentário não fechado — o erro honesto estava na última linha do grupo.
+    emitted = 0
+    shown = 0
     for path, found in list(issues.items())[:MAX_FILES]:
-        head = f"{len(found)} erro(s) de compilação em {path}"
-        body = "\n".join(f"  {item}" for item in found[:MAX_PER_FILE])
-        more = "" if len(found) <= MAX_PER_FILE else f"\n  … e mais {len(found) - MAX_PER_FILE}"
+        chunks = [found[i : i + MAX_PER_FILE] for i in range(0, len(found), MAX_PER_FILE)]
         first_line = found[0].split()[0].split(":")[0]
-        emit("error", f"{head}\n{body}{more}", path, int(first_line) if first_line.isdigit() else None)
+        where = int(first_line) if first_line.isdigit() else None
+        for part, chunk in enumerate(chunks, 1):
+            if emitted >= MAX_ANNOTATIONS:
+                break
+            tag = f" (parte {part}/{len(chunks)})" if len(chunks) > 1 else ""
+            head = f"{len(found)} erro(s) de compilação em {path}{tag}"
+            emit("error", head + "\n" + "\n".join(f"  {item}" for item in chunk), path, where)
+            emitted += 1
+            shown += len(chunk)
+    if len(issues) > MAX_FILES:
+        emit("warning", f"{len(issues) - MAX_FILES} arquivo(s) com erros ficaram fora da lista (teto de anotações)")
+    hidden = sum(len(v) for v in issues.values()) - shown
+    if hidden > 0:
+        emit("warning", f"{hidden} linha(s) de erro não publicadas por causa do teto de anotações")
 
     for task in tasks[:8]:
         emit("error", f"task do Gradle falhou: {task}")

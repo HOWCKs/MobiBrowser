@@ -239,18 +239,22 @@ fun ChipRowDivider(modifier: Modifier = Modifier) {
 fun ProgressBar(progress: Int, modifier: Modifier = Modifier) {
     if (progress < 0) return
     val fraction = (progress.coerceIn(0, 100)) / 100f
+    // MaterialTheme.colorScheme é @Composable: tem de ser lido AQUI, fora do Canvas, porque o
+    // lambda do Canvas recebe um DrawScope (não-composable) e chamar dentro é erro de compilação.
+    val track = MaterialTheme.colorScheme.surfaceVariant
+    val fill = MaterialTheme.colorScheme.primary
     Canvas(modifier = modifier.fillMaxWidth().height(3.dp)) {
         val h = size.height
+        val r = androidx.compose.ui.geometry.CornerRadius(h, h)
         drawRoundRect(
-            color = MaterialTheme.colorScheme.surfaceVariant,
-            height = h,
-            cornerRadius = androidx.compose.ui.geometry.CornerRadius(h, h),
+            color = track,
+            size = androidx.compose.ui.geometry.Size(size.width, h),
+            cornerRadius = r,
         )
         drawRoundRect(
-            color = MaterialTheme.colorScheme.primary,
-            width = size.width * fraction,
-            height = h,
-            cornerRadius = androidx.compose.ui.geometry.CornerRadius(h, h),
+            color = fill,
+            size = androidx.compose.ui.geometry.Size(size.width * fraction, h),
+            cornerRadius = r,
         )
     }
 }

@@ -137,7 +137,7 @@ fun BrowserScreen(
     LaunchedEffect(state?.url) { editing = false }
     LaunchedEffect(tab) { query = state?.url.orEmpty() }
 
-    val filePicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument) { uri ->
+    val filePicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         uri?.let(vm::installFromUri)
     }
 
@@ -216,32 +216,36 @@ fun BrowserScreen(
                 EngineSurface(tab = current)
             }
 
-            AnimatedVisibility(
-                visible = state?.crashed == true,
-                enter = slideInVertically { -it } + fadeIn(),
-                exit = fadeOut(),
-                modifier = Modifier.align(Alignment.TopCenter),
-            ) {
-                CrashCard(onReload = { vm.reload() })
+            // Column de embrulho: AnimatedVisibility é extensão de ColumnScope e o Kotlin não
+            // deixa usar um receptor implícito de fora da fronteira de um layout (o Box aqui).
+            Column(Modifier.align(Alignment.TopCenter)) {
+                AnimatedVisibility(
+                    visible = state?.crashed == true,
+                    enter = slideInVertically { -it } + fadeIn(),
+                    exit = fadeOut(),
+                ) {
+                    CrashCard(onReload = { vm.reload() })
+                }
             }
 
             // Banner contextual: página de item da Chrome Web Store → instalar.
             val storeId = state?.url?.let { app.mobibrowser.core.ext.ChromeWebStore.idFrom(it) }
-            AnimatedVisibility(
-                visible = storeId != null && state?.crashed != true,
-                enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
-                exit = slideInVertically { it } + fadeOut(),
-                modifier = Modifier.align(Alignment.BottomCenter),
-            ) {
-                StoreInstallBanner(
-                    storeId = storeId.orEmpty(),
-                    installing = progress is ExtensionManager.InstallProgress.Working,
-                    onInstall = {
-                        vm.setStoreInstallInput(storeId)
-                        vm.installFromStore(storeId)
-                    },
-                    onOpenExtensions = { vm.openExtensions() },
-                )
+            Column(Modifier.align(Alignment.BottomCenter)) {
+                AnimatedVisibility(
+                    visible = storeId != null && state?.crashed != true,
+                    enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
+                    exit = slideOutVertically { it } + fadeOut(),
+                ) {
+                    StoreInstallBanner(
+                        storeId = storeId.orEmpty(),
+                        installing = progress is ExtensionManager.InstallProgress.Working,
+                        onInstall = {
+                            vm.setStoreInstallInput(storeId)
+                            vm.installFromStore(storeId)
+                        },
+                        onOpenExtensions = { vm.openExtensions() },
+                    )
+                }
             }
 
             if (progress != null) {
@@ -292,7 +296,7 @@ fun BrowserScreen(
         AnimatedVisibility(
             visible = !editing,
             enter = slideInVertically(animationSpec = tween(MobiMotion.durationPop)) { it },
-            exit = slideInVertically { it },
+            exit = slideOutVertically { it },
         ) {
             BottomBar(
                 state = state,

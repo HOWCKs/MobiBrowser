@@ -67,7 +67,7 @@ fun PageSheet(vm: MobiViewModel, onDismiss: () -> Unit) {
     val extensions by vm.extensionsUi.collectAsStateWithLifecycle()
     val bookmarked by vm.bookmarkActive.collectAsStateWithLifecycle()
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false)
-    val filePicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument) { uri ->
+    val filePicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         uri?.let(vm::installFromUri)
     }
 
