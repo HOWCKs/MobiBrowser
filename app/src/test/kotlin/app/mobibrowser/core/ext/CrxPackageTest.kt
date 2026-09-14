@@ -152,7 +152,9 @@ class CrxPackageTest {
             assertEquals(3, head.crxVersion)
             val dir = tempDir("saida")
             val written = CrxPackage.unzipFrom(file, head.payloadStart, dir)
-            assertEquals(listOf("manifest.json", "content.js"), written.sorted())
+            // Ordem de extração, não conjunto ordenado: o que importa para o instalador é que as
+            // duas entradas do pacote saiam na sequência em que o ZIP as guarda.
+            assertEquals(listOf("manifest.json", "content.js"), written)
             assertTrue(File(dir, "content.js").readText().contains("console.log"))
         }
     }
