@@ -123,6 +123,12 @@ jobs:
       - name: Checar balanceamento de chaves no Kotlin
         run: python3 tools/kotlin-balance-check.py app/src
 
+      # `import java.io.File` duas vezes num arquivo = "Conflicting import" no Kotlin e 8 minutos de
+      # CI perdidos. Este checador dispara contra um duplicado plantado em cada revisão, para não
+      # virar mais um que sempre diz "ok".
+      - name: Checar importos conflitantes no Kotlin
+        run: python3 tools/kotlin-import-check.py app/src
+
       # Um buildConfigField cortado por engano não gera erro no gradle: gera oito
       # "Unresolved reference" em arquivos aleatórios do app, que é exatamente o que aconteceu
       # quando o GIT_SHA sumiu da lista. Custa um grep e economiza um ciclo de 12 minutos.

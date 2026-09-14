@@ -8,7 +8,6 @@ import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
-import java.io.File
 import org.junit.Test
 
 /** Envelope CRX + ZIP seguro: as duas coisas que um instalador de sideload precisa acertar. */
@@ -151,7 +150,7 @@ class CrxPackageTest {
             val head = CrxPackage.headerOf(file)
             assertEquals(payloadStart.toLong(), head.payloadStart)
             assertEquals(3, head.crxVersion)
-            val dir = File(createTempDir(), "saida")
+            val dir = tempDir("saida")
             val written = CrxPackage.unzipFrom(file, head.payloadStart, dir)
             assertEquals(listOf("manifest.json", "content.js"), written.sorted())
             assertTrue(File(dir, "content.js").readText().contains("console.log"))
@@ -173,7 +172,7 @@ class CrxPackageTest {
         // mostrava como texto ininteligível.
         file.writeBytes(full.copyOf(full.size - full.size / 3))
         val head = CrxPackage.headerOf(file)
-        val error = runCatching { CrxPackage.unzipFrom(file, head.payloadStart, File(createTempDir(), "x")) }
+        val error = runCatching { CrxPackage.unzipFrom(file, head.payloadStart, tempDir("x")) }
             .exceptionOrNull()
         assertTrue("esperava falha clara, veio: ${error?.message}", error != null)
         val msg = error!!.message.orEmpty()
@@ -186,6 +185,10 @@ class CrxPackageTest {
         )
         assertTrue("precisa dizer o que fazer", msg.contains("de novo") || msg.contains("sem função"))
     }
+
+    /** Diretório temporário descartável: `java.nio.file` em vez do `createTempDir()` depreciado. */
+    private fun tempDir(name: String): File =
+        java.nio.file.Files.createTempDirectory("mobi-$name").toFile()
 
     private fun crxFile(zip: ByteArray, header: ByteArray): File {
         val file = File.createTempFile("pacote", ".crx")
