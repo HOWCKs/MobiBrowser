@@ -385,7 +385,7 @@ class MobiViewModel(application: Application) : AndroidViewModel(application) {
 
     fun historyCount(): Int = runCatching { db.countHistory() }.getOrDefault(0)
 
-    // --- atualizacao do canal instavel -------------------------------------------------
+    // --- atualização do canal instável -------------------------------------------------
 
     fun checkUpdate() {
         app.updates.check()
@@ -400,14 +400,14 @@ class MobiViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     /**
-     * Entrega o APK ao instalador do sistema. Se a permissao de fontes desconhecidas faltar,
-     * [UpdateManager.installIntent] abre a tela de configuracao dela e devolve null — o aviso
-     * abaixo existe para o usuario nao achar que o botao nao fez nada.
+     * Entrega o APK ao instalador do sistema. Se a permissão de fontes desconhecidas faltar,
+     * [UpdateManager.installIntent] abre a tela de configuração dela e devolve null — o aviso
+     * abaixo existe para o usuário não achar que o botão não fez nada.
      */
     fun installUpdate(activity: android.app.Activity) {
         val intent = app.updates.installIntent(activity)
         if (intent == null) {
-            viewModelScope.launch { snack("Falta permitir a instalacao; abrindo o ajuste do sistema") }
+            viewModelScope.launch { snack("Falta permitir a instalação; abrindo o ajuste do sistema") }
             return
         }
         runCatching { activity.startActivity(intent) }

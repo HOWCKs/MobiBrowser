@@ -77,10 +77,10 @@ android {
         buildConfigField("boolean", "MOBI_ALLOW_UNSIGNED_ADDONS", allowUnsignedAddons.toString())
         // Canal da Chrome Web Store usado no endpoint de download de CRX.
         buildConfigField("String", "CWS_PRODVERSION", "\"139.0.0.0\"")
-        // Canal de atualizacao lido pelo UpdateManager (Configuracoes > Sobre). Um fork aponta
-        // para a propria release mudando UPDATE_REPO para dono/repo.
-        buildConfigField("String", "UPDATE_REPO", "\"HOWCKs/MobiBrowser\")
-        buildConfigField("String", "UPDATE_TAG", "\"nightly\")
+        // Canal de atualização lido pelo UpdateManager (Configurações → Sobre). Um fork aponta
+        // para a própria release mudando UPDATE_REPO para dono/repo.
+        buildConfigField("String", "UPDATE_REPO", "\"HOWCKs/MobiBrowser\"")
+        buildConfigField("String", "UPDATE_TAG", "\"nightly\"")
         buildConfigField("boolean", "MOBI_DEBUG_LOGS", "true")
     }
 

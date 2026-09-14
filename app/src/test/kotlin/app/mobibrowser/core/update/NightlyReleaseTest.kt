@@ -47,8 +47,8 @@ class NightlyReleaseTest {
     fun `sha vem do parentese final do titulo, sem o parentese`() {
         val title = "MobiBrowser nightly 2026-09-14 (a42ba18)"
         assertEquals("a42ba18", NightlyRelease.shaOf(title))
-        // regressão: o match inteiro incluía o ')' e a comparação com BuildConfig.GIT_SHA
-        // nunca batia, então o app diria que há atualização para sempre
+        // regressão: o match inteiro incluía o parêntese fechado e a comparação com
+        // BuildConfig.GIT_SHA nunca batia — o app diria que há atualização para sempre
         assertTrue(!NightlyRelease.shaOf(title).endsWith(")"))
     }
 
@@ -110,7 +110,7 @@ class NightlyReleaseTest {
         val assets = NightlyRelease.parse(
             releaseJson("t (abc1234)", "2026-09-14T00:00:00Z", mixed),
         ).assets
-        // sem o delimitador no casamento, "-x86" engoliria x86_64
+        // sem o delimitador no casamento, o x86 engoliria o binário de x86_64
         assertEquals("app-universal-unstable.apk", NightlyRelease.pickAsset(assets, listOf("x86"))?.name)
         assertEquals("app-x86_64-unstable.apk", NightlyRelease.pickAsset(assets, listOf("x86_64"))?.name)
     }
