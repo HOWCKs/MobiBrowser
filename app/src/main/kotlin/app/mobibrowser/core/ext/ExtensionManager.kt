@@ -164,9 +164,12 @@ class ExtensionManager(
             object : WebExtensionController.PromptDelegate {
                 override fun onInstallPromptRequest(
                     extension: WebExtension,
-                    permissions: Array<out String>?,
-                    origins: Array<out String>?,
-                    dataCollectionPermissions: Array<out String>?,
+                    // Sem projeção `out`: sobrepor método Java exige o tipo do parâmetro
+                    // exatamente como ele é (`String[]` -> Array<String>); com `out` o compilador
+                    // diz "overrides nothing" (visto no CI).
+                    permissions: Array<String>?,
+                    origins: Array<String>?,
+                    dataCollectionPermissions: Array<String>?,
                 ): GeckoResult<WebExtension.PermissionPromptResponse> = requestUserConsent(
                     extension,
                     permissions,

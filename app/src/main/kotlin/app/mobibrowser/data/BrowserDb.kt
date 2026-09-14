@@ -27,7 +27,9 @@ data class UserScript(
     val id: String,
     val name: String,
     val code: String,
-    /** Padrão no estilo match pattern: `*://*.exemplo.com/*` ou `<all_urls>`. */
+    /** Curinga de host/caminho no estilo match pattern do Chrome, ou o atalho all_urls.
+     *  Não citar o padrão literal aqui: a barra com estrela que ele contém abriria um
+     *  comentário aninhado neste bloco e engoliria o arquivo inteiro. */
     val pattern: String,
     val kind: ScriptKind,
     val enabled: Boolean,

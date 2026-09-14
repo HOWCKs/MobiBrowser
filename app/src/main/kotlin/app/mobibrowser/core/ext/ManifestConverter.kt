@@ -316,7 +316,9 @@ object ManifestConverter {
 
     /** Hash curto determinístico (substituto do id da Chrome Web Store quando não há). */
     private fun stableHash(seed: String): String {
-        var h = 0x811C9DC5
+        // FNV-1a de 32 bits. O offset basis não cabe em Int: literal maior que
+        // Int.MAX_VALUE é inferido como Long e o resto do laço não compila.
+        var h = 0x811C9DC5.toInt()
         for (c in seed) {
             h = h xor c.code
             h *= 0x01000193

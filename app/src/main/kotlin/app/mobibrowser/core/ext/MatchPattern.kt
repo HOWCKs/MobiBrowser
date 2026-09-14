@@ -3,9 +3,16 @@ package app.mobibrowser.core.ext
 import java.util.regex.Pattern
 
 /**
- * Implementação dos *match patterns* das extensões (`*://*.site/*`, `<all_urls>`),
- * igual à semântica do Chrome/Firefox — é o que decide "esta extensão/script roda
- * neste site?" no modo compatibilidade e nos user scripts.
+ * Implementação dos "match patterns" das extensões: o curinga de protocolo/host/caminho que
+ * o Chrome usa (cada parte aceita estrela) e o atalho `all_urls`. É o que decide "esta
+ * extensão roda neste site?" no modo compatibilidade e nos user scripts, com a mesma
+ * semântica do Firefox.
+ *
+ * O exemplo literal não cabe neste comentário de propósito: todo match pattern tem uma barra
+ * seguida de estrela, e o Kotlin ANINHA comentário de bloco — a sequência abriria um
+ * aninhado fechado pelo `termina-comentário` de baixo, deixando este arquivo inteiro como
+ * comentário. Foi exatamente assim que este `object` sumiu de um build sem acusar nada aqui.
+ * tools/kotlin-comment-check.py é a guarda contra isso.
  */
 object MatchPattern {
 

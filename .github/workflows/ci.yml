@@ -65,6 +65,12 @@ jobs:
           print('::warning::' + t.replace('%', '%25').replace(':', '%3A').replace('|', '%7C').replace('\n', '%0A')[:1400])
           PY
 
+      # Guarda barata contra o bug que custou 4 ciclos: um `/*` dentro de KDoc (todo match
+      # pattern tem `://*`) aninha comentário no Kotlin e engole o arquivo inteiro — o
+      # compilador não acusa nada no arquivo, só "Unresolved reference" nos outros.
+      - name: Checar comentários de bloco no Kotlin
+        run: python3 tools/kotlin-comment-check.py app/src
+
       - name: Lógica pura (conversor de manifest, parser de CRX)
         run: |
           set -o pipefail

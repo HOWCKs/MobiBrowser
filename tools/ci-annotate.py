@@ -42,8 +42,8 @@ BLOCK_END = re.compile(r"^\* Try:|^=\+$|^\* Get more help|^\* For more")
 AAR_HEADER = re.compile(r"(?P<count>\d+) issues? were found when checking AAR metadata")
 COMPILE_NOTE = re.compile(r"^(FAILURE:|Execution failed for task|> Compilation error)")
 
-MAX_PER_FILE = 14       # mensagens exibidas por arquivo
-MAX_FILES = 24          # arquivos anotados
+MAX_PER_FILE = 6        # mensagens exibidas por arquivo
+MAX_FILES = 40          # arquivos anotados
 MAX_BLOCKS = 6
 BLOCK_CHARS = 1400
 
