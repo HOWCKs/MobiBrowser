@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -65,7 +66,10 @@ fun DevScreen(vm: MobiViewModel, onDismiss: () -> Unit) {
     val ctx = LocalContext.current
     val clipboard = LocalClipboardManager.current
     val settings by vm.settings.collectAsStateWithLifecycle()
-    val update by vm.updateStatus.collectAsStateWithLifecycle()
+    // `update` é lido em `when (update) { is … -> update.sha }`, e smart cast não funciona em
+    // propriedade delegada — por isso o bloco original em Ajustes usava `.value` numa val local.
+    // Mantém-se a local: o `by` aqui seria 14 erros de compilação para ganhar uma letra.
+    val update = vm.updateStatus.collectAsStateWithLifecycle().value
     var copied by remember { mutableStateOf(false) }
 
     Scaffold(
@@ -196,7 +200,7 @@ fun DevScreen(vm: MobiViewModel, onDismiss: () -> Unit) {
                 if (update is UpdateManager.Status.Downloading) {
                     Spacer(Modifier.height(8.dp))
                     LinearProgressIndicator(
-                        progress = { (update as UpdateManager.Status.Downloading).percent / 100f },
+                        progress = { update.percent / 100f },
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(4.dp),
