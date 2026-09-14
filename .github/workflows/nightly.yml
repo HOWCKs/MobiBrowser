@@ -2,6 +2,14 @@ name: Nightly — release instável rolling
 
 # Todos os dias às 03:00 UTC (00:00 em Brasília) publica/move um GitHub Release
 # de pré-lançamento chamado `nightly`, sempre com o APK mais recente.
+#
+# É esse release que Configurações → Sobre → "Verificar atualização" consulta dentro do app
+# (UpdateManager lê api.github.com/repos/…/releases/tags/nightly e compara o sha do título com
+# BuildConfig.GIT_SHA — versionCode não serve porque o canal não incrementa versão).
+#
+# O gatilho agendado só roda na branch padrão, que é uma regra do GitHub para cron. Enquanto o
+# trabalho estiver em outra branch, publique o canal assim (o checkout usa o próprio ref):
+#   gh workflow run nightly.yml --ref arena/01a09897-mobibrowser
 on:
   schedule:
     - cron: "0 3 * * *"
@@ -56,8 +64,12 @@ jobs:
           {
             echo "Build automático noturno — **artefato instável**, não use para navegação sensível (senhas, banco)."
             echo ""
-            echo "Instale o APK universal (\`app-universal-unstable-*.apk\`) ou o correspondente à sua ABI"
-            echo "(\`arm64-v8a\` é o mais comum em aparelhos recentes)."
+            echo "Escolha o APK da ABI do seu aparelho (arm64-v8a é o mais comum em aparelhos"
+            echo "recentes). Os nomes publicados estão abaixo:"
+            echo ""
+            find app/build/outputs/apk -name '*.apk' -printf '- %f\n' 2>/dev/null | sort || true
+            echo ""
+            echo "Com o app já instalado dá para atualizar por dentro dele: Configurações → Sobre → Verificar atualização (baixa o mesmo APK e abre o instalador do sistema)."
             echo ""
             echo "### Commits desde o último build"
             git log -20 --pretty=format:'- %h %s' || true

@@ -11,4 +11,9 @@
     <cache-path
         name="staging"
         path="ext-staging/" />
+    <!-- APK baixado pelo verificador de atualização: o instalador do sistema só aceita
+         conteúdo entregue por URI de provider, nunca file:// cru (TransactionTooLarge + V7). -->
+    <files-path
+        name="updates"
+        path="updates/" />
 </paths>

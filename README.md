@@ -23,6 +23,31 @@ aparelho — junto com os recursos que se esperam de um navegador moderno.
 Para o seu aparelho, o menor APK é o da ABI correta (`arm64-v8a` nos celulares de hoje;
 `x86_64` em emuladores). O universal funciona em todos e é maior.
 
+### Atualizar por dentro do app
+
+Configurações → Sobre → **Verificar atualização** lê a release `nightly` no GitHub e compara o
+commit escrito no título do release com o `BuildConfig.GIT_SHA` embutido no app. Comparação por
+commit (e não por `versionCode`) é o que faz sentido num canal que não incrementa versão.
+
+Havendo build novo, o mesmo card oferece **Baixar** e depois **Instalar**:
+
+- o APK vai para `files/updates`, não para `cacheDir` — cache o sistema apaga quando falta
+  espaço, e apagaria justamente o arquivo prestes a ser instalado;
+- a instalação é feita pelo instalador do sistema (`FileProvider` + `ACTION_VIEW`), que ainda
+  pede confirmação e, na primeira vez, a permissão *Instalar apps desconhecidos*. Nada é
+  instalado em silêncio — e não há como haver.
+- se faltar a permissão, o app abre o ajuste certo e mantém o arquivo baixado: o próximo toque
+  instala, sem baixar 115 MB de novo.
+
+Nada é consultado no início do app. Uma chamada ao GitHub a cada abertura seria um canário de
+instalação entregue a um terceiro, num navegador cujo argumento é justamente reduzir
+rastreamento; o preço dessa escolha é óbvio — sem toque, sem aviso.
+
+Para publicar/renovar o canal a partir de uma branch que não é a padrão (o cron do GitHub só
+roda na padrão):
+
+    gh workflow run nightly.yml --ref arena/01a09897-mobibrowser
+
 ---
 
 ## Como extensões funcionam aqui

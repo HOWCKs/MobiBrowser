@@ -10,7 +10,6 @@ plugins {
 }
 
 /**
-        buildConfigField("String", "GIT_SHA", "\" + gitSha() + \"")
  * aparece na tela "Sobre" e no nome dos artefatos do CI — sem isso é impossível
  * correlacionar o feedback do aparelho com uma compilação específica.
  */
@@ -78,7 +77,10 @@ android {
         buildConfigField("boolean", "MOBI_ALLOW_UNSIGNED_ADDONS", allowUnsignedAddons.toString())
         // Canal da Chrome Web Store usado no endpoint de download de CRX.
         buildConfigField("String", "CWS_PRODVERSION", "\"139.0.0.0\"")
-        buildConfigField("String", "GIT_SHA", "\" + gitSha() + \"")
+        // Canal de atualizacao lido pelo UpdateManager (Configuracoes > Sobre). Um fork aponta
+        // para a propria release mudando UPDATE_REPO para dono/repo.
+        buildConfigField("String", "UPDATE_REPO", "\"HOWCKs/MobiBrowser\")
+        buildConfigField("String", "UPDATE_TAG", "\"nightly\")
         buildConfigField("boolean", "MOBI_DEBUG_LOGS", "true")
     }
 

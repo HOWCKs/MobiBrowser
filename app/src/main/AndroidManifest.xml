@@ -5,6 +5,19 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.VIBRATE" />
+    <!-- Necessário para o verificador de atualização abrir o instalador com o APK baixado.
+         O sistema ainda mostra a confirmação manual; nada é instalado em silêncio. -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+
+    <!-- Android 11+ esconde quem resolve ACTION_VIEW de pacote .apk. Sem declarar a
+         intenção aqui, startActivity do instalador pode dar ActivityNotFoundException e o
+         botão "Instalar" parecer quebrado. -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:mimeType="application/vnd.android.package-archive" />
+        </intent>
+    </queries>
 
     <application
         android:name=".MobiApplication"

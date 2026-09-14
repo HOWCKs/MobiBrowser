@@ -18,6 +18,7 @@ import app.mobibrowser.core.ext.BridgeScripts
 import app.mobibrowser.core.ext.ChromeWebStore
 import app.mobibrowser.core.ext.ExtensionRegistry
 import app.mobibrowser.core.engine.BrowserTab
+import app.mobibrowser.core.update.UpdateManager
 import androidx.compose.runtime.Immutable
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -60,6 +61,12 @@ class MobiViewModel(application: Application) : AndroidViewModel(application) {
     val popup = extensions.popup
     val installProgress = extensions.progress
     val installPrompt = extensions.prompt
+
+    /**
+     * Estado do verificador de pré-lançamento. A consulta ao GitHub nunca acontece sozinha —
+     * o único caminho para ela é [checkUpdate], disparado por toque em Configurações → Sobre.
+     */
+    val updateStatus: StateFlow<UpdateManager.Status> = app.updates.status
 
     private val _overlay = MutableStateFlow(Overlay.NONE)
     val overlay: StateFlow<Overlay> = _overlay.asStateFlow()
@@ -378,9 +385,42 @@ class MobiViewModel(application: Application) : AndroidViewModel(application) {
 
     fun historyCount(): Int = runCatching { db.countHistory() }.getOrDefault(0)
 
-    /** Prévia da loja no sheet de instalação (best effort: se falhar, só falta o preview). */
+    // --- atualizacao do canal instavel -------------------------------------------------
+
+    fun checkUpdate() {
+        app.updates.check()
+    }
+
+    fun downloadUpdate() {
+        val available = app.updates.status.value as? UpdateManager.Status.Available ?: return
+        app.updates.download(available.assetUrl, available.bytes)
+        viewModelScope.launch {
+            snack("Baixando " + (available.bytes / 1048576) + " MB — dá para fechar esta tela enquanto baixa")
+        }
+    }
+
+    /**
+     * Entrega o APK ao instalador do sistema. Se a permissao de fontes desconhecidas faltar,
+     * [UpdateManager.installIntent] abre a tela de configuracao dela e devolve null — o aviso
+     * abaixo existe para o usuario nao achar que o botao nao fez nada.
+     */
+    fun installUpdate(activity: android.app.Activity) {
+        val intent = app.updates.installIntent(activity)
+        if (intent == null) {
+            viewModelScope.launch { snack("Falta permitir a instalacao; abrindo o ajuste do sistema") }
+            return
+        }
+        runCatching { activity.startActivity(intent) }
+            .onFailure { error ->
+                MobiLog.e("update", "o instalador recusou o APK", error)
+                viewModelScope.launch { snack("O instalador nao aceitou o arquivo: " + error.message) }
+            }
+    }
+
     private val _storeSummary = MutableStateFlow<ChromeWebStore.Summary?>(null)
     val storeSummary: StateFlow<ChromeWebStore.Summary?> = _storeSummary.asStateFlow()
+
+    /** Prévia da loja no sheet de instalação (best effort: se falhar, só falta o preview). */
 
     fun previewStoreInstall(input: String) {
         val id = ChromeWebStore.idFrom(input)

@@ -5,6 +5,7 @@ import android.content.Intent
 import app.mobibrowser.BuildConfig
 import app.mobibrowser.core.MobiLog
 import app.mobibrowser.core.engine.GeckoEngine
+import app.mobibrowser.core.update.UpdateManager
 import app.mobibrowser.core.engine.TabController
 import app.mobibrowser.core.ext.BridgeScripts
 import app.mobibrowser.core.ext.ExtensionManager
@@ -46,6 +47,11 @@ class MobiApplication : Application() {
     lateinit var tabs: TabController
         private set
 
+    /** Verificador de pré-lançamento. Vive no app, e não na ViewModel, para que um download
+     * em curso sobreviva a trocar de tela. */
+    lateinit var updates: UpdateManager
+        private set
+
     /** URL trazida por intent antes de a UI existir (VIEW/SEND). */
     @Volatile
     var pendingIntentUrl: String? = null
@@ -72,6 +78,7 @@ class MobiApplication : Application() {
             scope = appScope,
         )
         tabs = TabController(engine = engine, prefs = prefs, db = db, scope = appScope)
+        updates = UpdateManager(context = this, scope = appScope)
 
         MobiLog.i("app", "camadas construídas; iniciando gestor de extensões")
         runCatching { extensions.start() }

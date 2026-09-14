@@ -51,6 +51,7 @@ import app.mobibrowser.data.SearchEngine
 import app.mobibrowser.data.ThemeMode
 import app.mobibrowser.ui.MobiViewModel
 import app.mobibrowser.core.MobiLog
+import app.mobibrowser.core.update.UpdateManager
 import app.mobibrowser.ui.common.InfoRow
 import app.mobibrowser.ui.common.SectionHeader
 import app.mobibrowser.ui.common.SwitchRow
@@ -211,8 +212,72 @@ fun SettingsScreen(vm: MobiViewModel, onDismiss: () -> Unit) {
                         },
                     )
                     InfoRow("Compilação", "${BuildConfig.VERSION_NAME} (${BuildConfig.GIT_SHA})")
-                    val clipboard = androidx.compose.ui.platform.LocalClipboardManager.current
+
                     val ctx = androidx.compose.ui.platform.LocalContext.current
+                    // --- atualização do canal instável -------------------------------------
+                    // Sem consulta automática no boot: um pedido ao GitHub a cada abertura do
+                    // app contaria instalação para um terceiro, o que briga com a proposta do
+                    // navegador. O preço é óbvio — o update só é oferecido quando se pede.
+                    val update = vm.updateStatus.collectAsStateWithLifecycle().value
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 4.dp),
+                        verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            text = when (update) {
+                                is UpdateManager.Status.Checking -> "Consultando o canal no GitHub…"
+                                is UpdateManager.Status.UpToDate ->
+                                    "Este já é o build mais novo do canal (" + BuildConfig.GIT_SHA + ")."
+                                is UpdateManager.Status.Available ->
+                                    "Novo build " + update.sha + ", de " + update.publishedAt +
+                                        " · " + (update.bytes / 1048576) + " MB"
+                                is UpdateManager.Status.Downloading ->
+                                    "Baixando o instalador… " + update.percent + "%"
+                                is UpdateManager.Status.Ready ->
+                                    "Instalador pronto (" + (update.bytes / 1048576) +
+                                        " MB). O sistema ainda pede confirmação antes de instalar."
+                                is UpdateManager.Status.Failed ->
+                                    "Não deu para verificar: " + update.message
+                                UpdateManager.Status.Idle ->
+                                    "Uma chamada ao GitHub, só quando você toca."
+                            },
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.weight(1f),
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        when (update) {
+                            is UpdateManager.Status.Available -> Button(onClick = { vm.downloadUpdate() }) {
+                                Text("Baixar")
+                            }
+
+                            is UpdateManager.Status.Ready -> Button(onClick = {
+                                (ctx as? android.app.Activity)?.let { vm.installUpdate(it) }
+                            }) {
+                                Text("Instalar")
+                            }
+
+                            is UpdateManager.Status.Downloading -> Unit
+
+                            else -> TextButton(
+                                enabled = update !is UpdateManager.Status.Checking,
+                                onClick = { vm.checkUpdate() },
+                            ) {
+                                Text(if (update is UpdateManager.Status.Failed) "Tentar de novo" else "Verificar")
+                            }
+                        }
+                    }
+                    if (update is UpdateManager.Status.Downloading) {
+                        androidx.compose.material3.LinearProgressIndicator(
+                            progress = { update.percent / 100f },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp),
+                        )
+                    }
+                    val clipboard = androidx.compose.ui.platform.LocalClipboardManager.current
                     var copied by remember { mutableStateOf(false) }
                     androidx.compose.foundation.layout.Row(
                         modifier = Modifier
